@@ -1,0 +1,83 @@
+# Secrets and environment files
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+!*.env.example
+!**/*.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+site/
+pip-wheel-metadata/
+*.egg-info/
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+.fvm/
+coverage/
+generated_plugin_registrant.dart
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+
+# iOS / Xcode
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/App.framework
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+tmp/
+temp/
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node / JavaScript build outputs, if added later
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Keep Flutter lockfiles and backend dependency files tracked
+!pubspec.lock
+!Backend/requirements.txt
