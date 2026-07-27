@@ -16,7 +16,6 @@ class User(Base):
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
-        index=True,
     )
 
     # Authentication

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -23,7 +25,7 @@ class TokenResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: str
+    id: UUID
     email: EmailStr
     full_name: str | None
     is_active: bool
@@ -32,3 +34,7 @@ class UserResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str

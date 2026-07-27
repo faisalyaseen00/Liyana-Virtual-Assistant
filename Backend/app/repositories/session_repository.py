@@ -1,10 +1,10 @@
 from uuid import UUID
 
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.session import Session as UserSession
-
 
 class SessionRepository:
 
@@ -47,8 +47,17 @@ class SessionRepository:
         session: UserSession,
     ) -> None:
 
-        from datetime import datetime
-
+        
         session.revoked_at = datetime.utcnow()
+
+        db.commit()
+
+    @staticmethod
+    def update_last_used(
+        db: Session,
+        session: UserSession,
+    ) -> None:
+
+        session.last_used_at = datetime.utcnow()
 
         db.commit()
