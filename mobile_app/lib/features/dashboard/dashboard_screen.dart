@@ -5,6 +5,8 @@ import '../alerts/alert_provider.dart';
 import '../tasks/task_provider.dart';
 import '../chat/chat_screen.dart';
 import '../tasks/task_screen.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/widgets/liyana_logo.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -30,13 +32,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: AppColors.background,
       body: _screens[_currentIndex],
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF12121A),
+          color: AppColors.surface,
           border: Border(
-            top: BorderSide(color: Color(0xFF00F5FF), width: 0.5),
+            top: BorderSide(color: AppColors.outline, width: 0.5),
           ),
         ),
         child: Consumer<AlertProvider>(
@@ -46,8 +48,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onTap: _setIndex,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      selectedItemColor: const Color(0xFF00F5FF),
-      unselectedItemColor: Colors.white24,
+      selectedItemColor: AppColors.primary,
+      unselectedItemColor: AppColors.textSecondary,
       type: BottomNavigationBarType.fixed,
       items: [
         const BottomNavigationBarItem(
@@ -110,7 +112,7 @@ class _HomeTab extends StatelessWidget {
             const Text(
               'QUICK ACTIONS',
               style: TextStyle(
-                color: Color(0xFF00F5FF),
+                color: AppColors.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 3,
@@ -122,7 +124,7 @@ class _HomeTab extends StatelessWidget {
             const Text(
               'AI AGENT STATUS',
               style: TextStyle(
-                color: Color(0xFF00F5FF),
+                color: AppColors.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 3,
@@ -173,13 +175,15 @@ class _HomeTab extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF12121A),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: const Color(0xFF00F5FF).withOpacity(0.3)),
+            border: Border.all(color: AppColors.primary.withOpacity(0.25)),
           ),
-          child:
-              const Icon(Icons.shield, color: Color(0xFF00F5FF), size: 28),
+          child: const SizedBox(
+            width: 28,
+            height: 28,
+            child: LiyanaLogo(size: 28, showWordmark: false),
+          ),
         ),
       ],
     );
@@ -194,21 +198,21 @@ class _HomeTab extends StatelessWidget {
               label: 'Pending',
               value: '${provider.pendingTasks.length}',
               icon: Icons.pending_actions,
-              color: const Color(0xFFFFAA00),
+              color: AppColors.warning,
             ),
             const SizedBox(width: 12),
             _buildStatCard(
               label: 'Completed',
               value: '${provider.completedTasks.length}',
               icon: Icons.check_circle,
-              color: const Color(0xFF44FF88),
+              color: AppColors.success,
             ),
             const SizedBox(width: 12),
             _buildStatCard(
               label: 'AI Agent',
               value: 'ON',
               icon: Icons.bolt,
-              color: const Color(0xFF00F5FF),
+              color: AppColors.primary,
             ),
           ],
         );
@@ -226,7 +230,7 @@ class _HomeTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF12121A),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withOpacity(0.3)),
         ),
