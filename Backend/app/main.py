@@ -10,7 +10,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # Development only
+    allow_origins=["*"],  # Development only
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,6 +21,4 @@ app.include_router(api_router)
 
 @app.get("/")
 def root():
-    return {
-        "message": " AI Backend Running"
-    }
+    return {"message": " AI Backend Running"}

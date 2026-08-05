@@ -1,37 +1,50 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
-from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.session import Session as UserSession
 
-class SessionRepository:
 
-    @staticmethod
+class SessionRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
     def create(
-        db: Session,
+        self,
         *,
         user_id: UUID,
         refresh_token_hash: str,
-        device_info: str | None = None,
+        device_name: str | None = None,
+        device_type: str | None = None,
+        browser: str | None = None,
+        operating_system: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        is_active: bool = True,
     ) -> UserSession:
 
         session = UserSession(
             user_id=user_id,
             refresh_token_hash=refresh_token_hash,
-            device_info=device_info,
+            device_name=device_name,
+            device_type=device_type,
+            browser=browser,
+            operating_system=operating_system,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            is_active=is_active,
         )
 
-        db.add(session)
-        db.commit()
-        db.refresh(session)
+        self.db.add(session)
+        self.db.commit()
+        self.db.refresh(session)
 
         return session
 
-    @staticmethod
     def get_by_refresh_token_hash(
-        db: Session,
+        self,
         refresh_token_hash: str,
     ) -> UserSession | None:
 
@@ -39,25 +52,80 @@ class SessionRepository:
             UserSession.refresh_token_hash == refresh_token_hash
         )
 
-        return db.scalar(statement)
+        return self.db.scalar(statement)
 
-    @staticmethod
+    def get_by_id(
+        self,
+        session_id: UUID,
+    ) -> UserSession | None:
+
+        statement = select(UserSession).where(UserSession.id == session_id)
+
+        return self.db.scalar(statement)
+
+    def get_by_user(
+        self,
+        user_id: UUID,
+    ) -> list[UserSession]:
+
+        statement = (
+            select(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.is_active.is_(True),
+                UserSession.revoked_at.is_(None),
+            )
+            .order_by(UserSession.created_at.desc())
+        )
+
+        return list(self.db.scalars(statement).all())
+
     def revoke(
-        db: Session,
+        self,
         session: UserSession,
     ) -> None:
 
-        
-        session.revoked_at = datetime.utcnow()
+        now = datetime.now(UTC)
 
-        db.commit()
+        session.is_active = False
+        session.revoked_at = now
+        session.updated_at = now
 
-    @staticmethod
-    def update_last_used(
-        db: Session,
+        self.db.commit()
+        self.db.refresh(session)
+
+    def revoke_all_except(
+        self,
+        user_id: UUID,
+        current_session_id: UUID,
+    ) -> None:
+
+        now = datetime.now(UTC)
+
+        sessions = self.db.scalars(
+            select(UserSession).where(
+                UserSession.user_id == user_id,
+                UserSession.id != current_session_id,
+                UserSession.is_active.is_(True),
+            )
+        ).all()
+
+        for session in sessions:
+            session.is_active = False
+            session.revoked_at = now
+            session.updated_at = now
+
+        self.db.commit()
+
+    def update_activity(
+        self,
         session: UserSession,
     ) -> None:
 
-        session.last_used_at = datetime.utcnow()
+        now = datetime.now(UTC)
 
-        db.commit()
+        session.last_activity_at = now
+        session.updated_at = now
+
+        self.db.commit()
+        self.db.refresh(session)

@@ -2,19 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
-
 from app.schemas.auth import (
+    LoginRequest,
     RefreshTokenRequest,
     RegisterRequest,
-    LoginRequest,
 )
-
 from app.services.auth_service import AuthService
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
 )
+
 
 @router.post(
     "/register",
@@ -41,6 +40,7 @@ def register(
             detail=str(e),
         )
 
+
 @router.post("/login")
 def login(
     request: Request,
@@ -48,11 +48,11 @@ def login(
     db: Session = Depends(get_db),
 ):
     try:
-
         tokens = AuthService.login_user(
             db=db,
             data=data,
-            device_info=request.headers.get("User-Agent"),
+            user_agent=request.headers.get("User-Agent"),
+            ip_address=request.client.host if request.client else None,
         )
 
         return tokens
@@ -62,6 +62,8 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
+
+
 @router.post("/refresh")
 def refresh(
     data: RefreshTokenRequest,
@@ -77,6 +79,8 @@ def refresh(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
+
+
 @router.post("/logout")
 def logout(
     data: RefreshTokenRequest,
@@ -88,9 +92,7 @@ def logout(
             refresh_token=data.refresh_token,
         )
 
-        return {
-            "message": "Logged out successfully"
-        }
+        return {"message": "Logged out successfully"}
 
     except ValueError as e:
         raise HTTPException(

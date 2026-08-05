@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import String, DateTime, ForeignKey
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,7 +18,7 @@ class Session(Base):
         default=uuid4,
     )
 
-    # Relationship to User
+    # Relationship
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -38,31 +38,70 @@ class Session(Base):
     )
 
     # Device Information
-    device_info: Mapped[str | None] = mapped_column(
+    device_name: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
 
-    # Session Status
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+    device_type: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    browser: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    operating_system: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    ip_address: Mapped[str | None] = mapped_column(
+        String(45),
+        nullable=True,
+    )
+
+    user_agent: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    # Session State
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
         nullable=False,
     )
 
-    last_used_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+    # Audit
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    last_activity_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=lambda: datetime.utcnow() + timedelta(days=30),
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC) + timedelta(days=30),
         nullable=False,
     )
 
     revoked_at: Mapped[datetime | None] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
     )
