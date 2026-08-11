@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
-
+from app.models.conversation import Conversation
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -91,7 +91,11 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-
+    conversations = relationship(
+    "Conversation",
+    back_populates="user",
+    cascade="all, delete-orphan",
+    )
     # ==========================
     # Audit Fields
     # ==========================
