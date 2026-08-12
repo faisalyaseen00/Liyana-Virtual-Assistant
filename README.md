@@ -1,3 +1,3 @@
-# Sentinel-AI
+# Liyana-AI
 
-Project scaffold for the Sentinel-AI workspace.
+Liyana Your AI-Powered Assitant.
