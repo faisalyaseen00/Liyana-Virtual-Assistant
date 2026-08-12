@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'alert_model.dart';
 import 'alert_provider.dart';
+import '../../core/theme/app_colors.dart';
 
 class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
@@ -18,7 +19,7 @@ class AlertsScreen extends StatelessWidget {
                     .markAllAsRead(),
             child: const Text(
               'Mark all read',
-              style: TextStyle(color: Color(0xFF00F5FF), fontSize: 12),
+              style: TextStyle(color: AppColors.primary, fontSize: 12),
             ),
           ),
         ],
@@ -63,8 +64,8 @@ class AlertsScreen extends StatelessWidget {
         onPressed: () =>
             Provider.of<AlertProvider>(context, listen: false)
                 .simulateAgentAlert(),
-        backgroundColor: const Color(0xFF00F5FF),
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.background,
         icon: const Icon(Icons.bolt),
         label: const Text(
           'Simulate Agent',
@@ -85,11 +86,11 @@ class AlertsScreen extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF12121A),
+              color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: alert.isRead
-                ? Colors.white12
+                ? AppColors.outline
                 : color.withOpacity(0.6),
             width: alert.isRead ? 1 : 1.5,
           ),
@@ -189,13 +190,13 @@ class AlertsScreen extends StatelessWidget {
   Color _alertColor(AlertType type) {
     switch (type) {
       case AlertType.urgent:
-        return const Color(0xFFFF4444);
+        return AppColors.danger;
       case AlertType.deadline:
-        return const Color(0xFFFFAA00);
+        return AppColors.warning;
       case AlertType.meeting:
-        return const Color(0xFF00F5FF);
+        return AppColors.primary;
       case AlertType.reminder:
-        return const Color(0xFF7B2FFF);
+        return AppColors.accent;
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../services/voice_service.dart';
 import 'chat_bubble.dart';
 
@@ -136,18 +137,18 @@ class _ChatScreenState extends State<ChatScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SENTINEL AI'),
+        title: const Text('LIYANA'),
         actions: [
   IconButton(
     icon: Icon(
       _voiceEnabled ? Icons.volume_up : Icons.volume_off,
-      color: _voiceEnabled ? Color(0xFF00F5FF) : Colors.white24,
+      color: _voiceEnabled ? AppColors.primary : AppColors.textSecondary,
     ),
     onPressed: () => setState(() => _voiceEnabled = !_voiceEnabled),
   ),
   if (_isSpeaking)
     IconButton(
-      icon: const Icon(Icons.stop_circle, color: Color(0xFFFF4444)),
+      icon: const Icon(Icons.stop_circle, color: AppColors.danger),
       onPressed: _toggleSpeaking,
     ),
   const SizedBox(width: 8),
@@ -160,20 +161,20 @@ class _ChatScreenState extends State<ChatScreen>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
-              color: const Color(0xFF00F5FF).withOpacity(0.1),
+              color: AppColors.primary.withOpacity(0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   ScaleTransition(
                     scale: _pulseAnimation,
                     child: const Icon(Icons.mic,
-                        color: Color(0xFF00F5FF), size: 18),
+                        color: AppColors.primary, size: 18),
                   ),
                   const SizedBox(width: 8),
                   const Text(
                     'Listening...',
                     style: TextStyle(
-                      color: Color(0xFF00F5FF),
+                      color: AppColors.primary,
                       fontSize: 13,
                       letterSpacing: 1,
                     ),
@@ -187,20 +188,20 @@ class _ChatScreenState extends State<ChatScreen>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
-              color: const Color(0xFF7B2FFF).withOpacity(0.1),
+              color: AppColors.accent.withOpacity(0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   ScaleTransition(
                     scale: _pulseAnimation,
                     child: const Icon(Icons.volume_up,
-                        color: Color(0xFF7B2FFF), size: 18),
+                        color: AppColors.accent, size: 18),
                   ),
                   const SizedBox(width: 8),
                   const Text(
-                    'Sentinel is speaking...',
+                    'Liyana is speaking...',
                     style: TextStyle(
-                      color: Color(0xFF7B2FFF),
+                      color: AppColors.accent,
                       fontSize: 13,
                       letterSpacing: 1,
                     ),
@@ -216,11 +217,11 @@ class _ChatScreenState extends State<ChatScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.shield,
-                            size: 60, color: Color(0xFF00F5FF)),
+                        const Icon(Icons.auto_awesome,
+                          size: 60, color: AppColors.primary),
                         const SizedBox(height: 16),
                         const Text(
-                          'Sentinel AI Ready',
+                          'Liyana Ready',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -255,7 +256,7 @@ class _ChatScreenState extends State<ChatScreen>
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: CircularProgressIndicator(
-                color: Color(0xFF00F5FF),
+                color: AppColors.primary,
                 strokeWidth: 2,
               ),
             ),
@@ -264,9 +265,9 @@ class _ChatScreenState extends State<ChatScreen>
           Container(
             padding: const EdgeInsets.all(AppConstants.padding),
             decoration: const BoxDecoration(
-              color: Color(0xFF12121A),
+              color: AppColors.surface,
               border: Border(
-                top: BorderSide(color: Color(0xFF00F5FF), width: 0.5),
+                top: BorderSide(color: AppColors.outline, width: 0.5),
               ),
             ),
             child: Row(
@@ -279,19 +280,19 @@ class _ChatScreenState extends State<ChatScreen>
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: _isListening
-                          ? const Color(0xFF00F5FF)
-                          : const Color(0xFF0A0A0F),
+                          ? AppColors.primary
+                          : AppColors.background,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF00F5FF),
+                        color: AppColors.primary,
                         width: 1.5,
                       ),
                     ),
                     child: Icon(
                       _isListening ? Icons.mic : Icons.mic_none,
                       color: _isListening
-                          ? Colors.black
-                          : const Color(0xFF00F5FF),
+                          ? AppColors.background
+                          : AppColors.primary,
                       size: 20,
                     ),
                   ),
@@ -305,15 +306,13 @@ class _ChatScreenState extends State<ChatScreen>
                     style: const TextStyle(color: Colors.white),
                     onSubmitted: (_) => _sendMessage(),
                     decoration: InputDecoration(
-                      hintText: 'Ask Sentinel...',
-                      hintStyle:
-                          TextStyle(color: Colors.white.withOpacity(0.4)),
+                        hintText: 'Ask Liyana...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: const Color(0xFF0A0A0F),
+                      fillColor: AppColors.background,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                     ),
@@ -327,11 +326,11 @@ class _ChatScreenState extends State<ChatScreen>
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF00F5FF),
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.send,
-                        color: Colors.black, size: 20),
+                        color: AppColors.background, size: 20),
                   ),
                 ),
               ],

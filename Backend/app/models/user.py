@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
-
-from sqlalchemy import String, Boolean, DateTime
+from app.models.conversation import Conversation
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,15 +11,18 @@ from app.db.base import Base
 class User(Base):
     __tablename__ = "users"
 
+    # ==========================
     # Primary Key
+    # ==========================
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
-        index=True,
     )
 
+    # ==========================
     # Authentication
+    # ==========================
     email: Mapped[str] = mapped_column(
         String(255),
         unique=True,
@@ -32,12 +35,34 @@ class User(Base):
         nullable=False,
     )
 
+    # ==========================
+    # Profile Information
+    # ==========================
     full_name: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
 
+    profile_picture: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    timezone: Mapped[str] = mapped_column(
+        String(100),
+        default="UTC",
+        nullable=False,
+    )
+
+    language: Mapped[str] = mapped_column(
+        String(50),
+        default="en",
+        nullable=False,
+    )
+
+    # ==========================
     # Account Status
+    # ==========================
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -50,23 +75,39 @@ class User(Base):
         nullable=False,
     )
 
+    # ==========================
+    # Login Information
+    # ==========================
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ==========================
     # Relationships
+    # ==========================
     sessions = relationship(
         "Session",
         back_populates="user",
         cascade="all, delete-orphan",
     )
-
-    # Audit
+    conversations = relationship(
+    "Conversation",
+    back_populates="user",
+    cascade="all, delete-orphan",
+    )
+    # ==========================
+    # Audit Fields
+    # ==========================
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )

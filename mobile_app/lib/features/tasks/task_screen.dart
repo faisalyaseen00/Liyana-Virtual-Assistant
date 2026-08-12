@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'task_provider.dart';
 import 'task_model.dart';
 import 'add_task_sheet.dart';
+import '../../core/theme/app_colors.dart';
 
 class TaskScreen extends StatefulWidget {
   const TaskScreen({super.key});
@@ -43,9 +44,9 @@ class _TaskScreenState extends State<TaskScreen>
         title: const Text('TASKS'),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xFF00F5FF),
-          labelColor: const Color(0xFF00F5FF),
-          unselectedLabelColor: Colors.white38,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
           tabs: const [
             Tab(text: 'PENDING'),
             Tab(text: 'COMPLETED'),
@@ -65,8 +66,8 @@ class _TaskScreenState extends State<TaskScreen>
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddTask,
-        backgroundColor: const Color(0xFF00F5FF),
-        child: const Icon(Icons.add, color: Colors.black),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: AppColors.background),
       ),
     );
   }
@@ -81,12 +82,12 @@ class _TaskScreenState extends State<TaskScreen>
             Icon(
               isCompleted ? Icons.check_circle : Icons.task_alt,
               size: 60,
-              color: Colors.white12,
+              color: AppColors.textSecondary,
             ),
             const SizedBox(height: 16),
             Text(
               isCompleted ? 'No completed tasks' : 'No pending tasks',
-              style: const TextStyle(color: Colors.white38, fontSize: 16),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
             ),
           ],
         ),
@@ -107,11 +108,11 @@ class _TaskScreenState extends State<TaskScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF12121A),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: task.isCompleted
-              ? Colors.white12
+              ? AppColors.outline
               : _priorityColor(task.priority).withOpacity(0.5),
         ),
       ),
@@ -127,16 +128,16 @@ class _TaskScreenState extends State<TaskScreen>
               shape: BoxShape.circle,
               border: Border.all(
                 color: task.isCompleted
-                    ? const Color(0xFF44FF88)
+                    ? AppColors.success
                     : _priorityColor(task.priority),
                 width: 2,
               ),
               color: task.isCompleted
-                  ? const Color(0xFF44FF88).withOpacity(0.2)
+                  ? AppColors.success.withOpacity(0.2)
                   : Colors.transparent,
             ),
             child: task.isCompleted
-                ? const Icon(Icons.check, size: 16, color: Color(0xFF44FF88))
+                ? const Icon(Icons.check, size: 16, color: AppColors.success)
                 : null,
           ),
         ),
@@ -208,11 +209,11 @@ class _TaskScreenState extends State<TaskScreen>
   Color _priorityColor(String priority) {
     switch (priority) {
       case 'High':
-        return const Color(0xFFFF4444);
+        return AppColors.danger;
       case 'Low':
-        return const Color(0xFF44FF88);
+        return AppColors.success;
       default:
-        return const Color(0xFFFFAA00);
+        return AppColors.warning;
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 import 'task_provider.dart';
 
 class AddTaskSheet extends StatefulWidget {
@@ -28,8 +29,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         return Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF00F5FF),
-              surface: Color(0xFF12121A),
+              primary: AppColors.primary,
+              surface: AppColors.surface,
             ),
           ),
           child: child!,
@@ -69,10 +70,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       decoration: const BoxDecoration(
-        color: Color(0xFF12121A),
+        color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(
-          top: BorderSide(color: Color(0xFF00F5FF), width: 0.5),
+          top: BorderSide(color: AppColors.outline, width: 0.5),
         ),
       ),
       child: Column(
@@ -83,7 +84,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             'NEW TASK',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Color(0xFF00F5FF),
+              color: AppColors.primary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
               letterSpacing: 3,
@@ -95,15 +96,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Task title *',
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                borderSide: const BorderSide(color: Color(0xFF00F5FF)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                borderSide: const BorderSide(color: Color(0xFF7B2FFF), width: 2),
-              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -113,15 +105,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             maxLines: 2,
             decoration: InputDecoration(
               hintText: 'Description (optional)',
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                borderSide: const BorderSide(color: Color(0xFF00F5FF)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                borderSide: const BorderSide(color: Color(0xFF7B2FFF), width: 2),
-              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -164,12 +147,12 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                border: const BorderSide(color: Color(0xFF00F5FF)) as Border?,
+                border: const BorderSide(color: AppColors.outline) as Border?,
               ),
               child: Row(
                 children: [
                   const Icon(Icons.calendar_today,
-                      color: Color(0xFF00F5FF), size: 18),
+                      color: AppColors.primary, size: 18),
                   const SizedBox(width: 8),
                   Text(
                     _deadline == null
@@ -189,12 +172,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           ElevatedButton(
             onPressed: _submit,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00F5FF),
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-              ),
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.background,
             ),
             child: const Text(
               'ADD TASK',
@@ -212,11 +191,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   Color _priorityColor(String priority) {
     switch (priority) {
       case 'High':
-        return const Color(0xFFFF4444);
+        return AppColors.danger;
       case 'Low':
-        return const Color(0xFF44FF88);
+        return AppColors.success;
       default:
-        return const Color(0xFFFFAA00);
+        return AppColors.warning;
     }
   }
 }

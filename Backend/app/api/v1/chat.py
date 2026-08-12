@@ -1,0 +1,49 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dependencies.auth import CurrentUser
+from app.dependencies.db import get_db
+from app.schemas.chat import ChatRequest, ChatResponse
+from app.services.chat_service import ChatService
+
+
+router = APIRouter(
+    prefix="/conversations/{conversation_id}/chat",
+    tags=["Chat"],
+)
+
+
+@router.post(
+    "",
+    response_model=ChatResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def send_message(
+    conversation_id: UUID,
+    data: ChatRequest,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> ChatResponse:
+
+    service = ChatService(db)
+
+    result = service.send_message(
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+        content=data.content,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found.",
+        )
+
+    user_message, assistant_message = result
+
+    return ChatResponse(
+        user_message=user_message,
+        assistant_message=assistant_message,
+    )
