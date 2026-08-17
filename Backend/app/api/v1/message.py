@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.auth import CurrentUser
 from app.dependencies.db import get_db
-from app.schemas.message import MessageCreate, MessageResponse
+from app.schemas.message import (
+    MessageCreate,
+    MessageResponse,
+    MessageUpdate,
+)
 from app.services.message_service import MessageService
 
 
@@ -14,6 +18,10 @@ router = APIRouter(
     tags=["Messages"],
 )
 
+
+# ==========================
+# Create Message
+# ==========================
 
 @router.post(
     "",
@@ -46,6 +54,10 @@ def create_message(
     return message
 
 
+# ==========================
+# Get All Messages
+# ==========================
+
 @router.get(
     "",
     response_model=list[MessageResponse],
@@ -70,3 +82,114 @@ def get_messages(
         )
 
     return messages
+
+
+# ==========================
+# Get Single Message
+# ==========================
+
+@router.get(
+    "/{message_id}",
+    response_model=MessageResponse,
+)
+def get_message(
+    conversation_id: UUID,
+    message_id: UUID,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+
+    service = MessageService(db)
+
+    message = service.get_message(
+        message_id=message_id,
+        user_id=current_user.id,
+    )
+
+    if message is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found.",
+        )
+
+    if message.conversation_id != conversation_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found.",
+        )
+
+    return message
+
+
+# ==========================
+# Update Message
+# ==========================
+
+@router.put(
+    "/{message_id}",
+    response_model=MessageResponse,
+)
+def update_message(
+    conversation_id: UUID,
+    message_id: UUID,
+    data: MessageUpdate,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+
+    service = MessageService(db)
+
+    message = service.update_message(
+        message_id=message_id,
+        user_id=current_user.id,
+        content=data.content,
+    )
+
+    if message is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found or cannot be updated.",
+        )
+
+    if message.conversation_id != conversation_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found.",
+        )
+
+    return message
+
+
+# ==========================
+# Delete Message
+# ==========================
+
+@router.delete(
+    "/{message_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_message(
+    conversation_id: UUID,
+    message_id: UUID,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> None:
+
+    service = MessageService(db)
+
+    message = service.delete_message(
+        message_id=message_id,
+        user_id=current_user.id,
+    )
+
+    if message is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found or cannot be deleted.",
+        )
+
+    if message.conversation_id != conversation_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found.",
+        )

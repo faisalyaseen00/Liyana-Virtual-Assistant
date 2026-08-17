@@ -20,7 +20,7 @@ router = APIRouter(
     response_model=ChatResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def send_message(
+async def send_message(
     conversation_id: UUID,
     data: ChatRequest,
     current_user: CurrentUser,
@@ -29,7 +29,7 @@ def send_message(
 
     service = ChatService(db)
 
-    result = service.send_message(
+    result = await service.send_message(
         conversation_id=conversation_id,
         user_id=current_user.id,
         content=data.content,
