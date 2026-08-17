@@ -4,6 +4,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
+class ConversationUpdate(BaseModel):
+    title: str
+
+
 class ConversationResponse(BaseModel):
     id: UUID
     user_id: UUID

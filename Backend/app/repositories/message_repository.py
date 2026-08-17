@@ -77,3 +77,25 @@ class MessageRepository:
         messages = list(self.db.scalars(statement).all())
 
         return list(reversed(messages))
+
+    def update(
+        self,
+        message: Message,
+        *,
+        content: str,
+    ) -> Message:
+
+        message.content = content
+
+        self.db.commit()
+        self.db.refresh(message)
+
+        return message
+
+    def delete(
+        self,
+        message: Message,
+    ) -> None:
+
+        self.db.delete(message)
+        self.db.commit()

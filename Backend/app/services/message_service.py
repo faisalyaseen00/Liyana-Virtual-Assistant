@@ -107,3 +107,63 @@ class MessageService:
             conversation_id=conversation_id,
             limit=limit,
         )
+
+    def update_message(
+        self,
+        *,
+        message_id: UUID,
+        user_id: UUID,
+        content: str,
+    ) -> Message | None:
+
+        message = self.message_repository.get_by_id(
+            message_id,
+        )
+
+        if message is None:
+            return None
+
+        conversation = self.conversation_repository.get_by_id_for_user(
+            conversation_id=message.conversation_id,
+            user_id=user_id,
+        )
+
+        if conversation is None:
+            return None
+
+        if message.role != MessageRole.USER:
+            return None
+
+        return self.message_repository.update(
+            message,
+            content=content,
+        )
+
+    def delete_message(
+        self,
+        *,
+        message_id: UUID,
+        user_id: UUID,
+    ) -> Message | None:
+
+        message = self.message_repository.get_by_id(
+            message_id,
+        )
+
+        if message is None:
+            return None
+
+        conversation = self.conversation_repository.get_by_id_for_user(
+            conversation_id=message.conversation_id,
+            user_id=user_id,
+        )
+
+        if conversation is None:
+            return None
+
+        if message.role != MessageRole.USER:
+            return None
+
+        self.message_repository.delete(message)
+
+        return message

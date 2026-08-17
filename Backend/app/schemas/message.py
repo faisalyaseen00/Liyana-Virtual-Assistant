@@ -12,6 +12,10 @@ class MessageCreate(BaseModel):
     extra_data: dict | None = None
 
 
+class MessageUpdate(BaseModel):
+    content: str
+
+
 class MessageResponse(BaseModel):
     id: UUID
     conversation_id: UUID
