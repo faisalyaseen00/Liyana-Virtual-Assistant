@@ -101,3 +101,26 @@ def update_conversation(
         )
 
     return conversation
+
+@router.delete(
+    "/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_conversation(
+    conversation_id: UUID,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+    ) -> None:
+
+    service = ConversationService(db)
+
+    deleted = service.delete_conversation(
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+    )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found.",
+        )

@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
+from app.core.settings import settings
 router = APIRouter(
     prefix="/health",
     tags=["Health"],
@@ -12,7 +13,7 @@ router = APIRouter(
 def health():
     return {
         "status": "healthy",
-        "service": "Sentinel AI API",
+        "service": settings.app_name,
         "version": "1.0.0",
         "timestamp": datetime.now(UTC),
     }

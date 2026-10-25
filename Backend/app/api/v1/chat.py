@@ -29,11 +29,17 @@ async def send_message(
 
     service = ChatService(db)
 
-    result = await service.send_message(
-        conversation_id=conversation_id,
-        user_id=current_user.id,
-        content=data.content,
-    )
+    try:
+        result = await service.send_message(
+            conversation_id=conversation_id,
+            user_id=current_user.id,
+            content=data.content,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI provider is unavailable.",
+        ) from exc
 
     if result is None:
         raise HTTPException(

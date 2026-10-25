@@ -3,6 +3,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/voice_service.dart';
 import 'chat_bubble.dart';
+import 'chat_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -16,7 +17,9 @@ class _ChatScreenState extends State<ChatScreen>
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final VoiceService _voiceService = VoiceService();
+  final ChatService _chatService = ChatService();
   final List<Map<String, String>> _messages = [];
+  String? _conversationId;
 
   bool _isLoading = false;
   bool _isListening = false;
@@ -39,9 +42,7 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  void _sendMessage([String? voiceText]) async
-  {
-
+  Future<void> _sendMessage([String? voiceText]) async {
     final text = voiceText ?? _controller.text.trim();
     if (text.isEmpty) return;
 
@@ -53,8 +54,19 @@ class _ChatScreenState extends State<ChatScreen>
     _controller.clear();
     _scrollToBottom();
 
-    final reply = _generateLocalReply(text);
+    String reply;
+    try {
+      final result = await _chatService.sendMessage(
+        content: text,
+        conversationId: _conversationId,
+      );
+      _conversationId = result.conversationId;
+      reply = result.response.assistantMessage.content;
+    } catch (_) {
+      reply = 'I could not reach Liyana right now.';
+    }
 
+    if (!mounted) return;
     setState(() {
       _messages.add({'role': 'ai', 'content': reply});
       _isLoading = false;
@@ -63,31 +75,12 @@ class _ChatScreenState extends State<ChatScreen>
     _scrollToBottom();
 
     // Agent speaks the response
-   // Agent speaks only if voice is enabled
-    if (_voiceEnabled) 
-    {
+    // Agent speaks only if voice is enabled
+    if (_voiceEnabled) {
       setState(() => _isSpeaking = true);
       await _voiceService.speak(reply);
       setState(() => _isSpeaking = false);
     }
-  }
-
-  String _generateLocalReply(String message) {
-    final lowerMessage = message.toLowerCase();
-
-    if (lowerMessage.contains('hello') || lowerMessage.contains('hi')) {
-      return 'Hello. I am running in frontend-only mode now.';
-    }
-
-    if (lowerMessage.contains('task')) {
-      return 'Tasks are managed locally in this app. Open the Tasks tab to continue.';
-    }
-
-    if (lowerMessage.contains('alert') || lowerMessage.contains('remind')) {
-      return 'Alerts are displayed locally. Use the Alerts tab for updates.';
-    }
-
-    return 'Frontend-only mode is active.';
   }
 
   void _toggleListening() async {
@@ -139,20 +132,22 @@ class _ChatScreenState extends State<ChatScreen>
       appBar: AppBar(
         title: const Text('LIYANA'),
         actions: [
-  IconButton(
-    icon: Icon(
-      _voiceEnabled ? Icons.volume_up : Icons.volume_off,
-      color: _voiceEnabled ? AppColors.primary : AppColors.textSecondary,
-    ),
-    onPressed: () => setState(() => _voiceEnabled = !_voiceEnabled),
-  ),
-  if (_isSpeaking)
-    IconButton(
-      icon: const Icon(Icons.stop_circle, color: AppColors.danger),
-      onPressed: _toggleSpeaking,
-    ),
-  const SizedBox(width: 8),
-  ],
+          IconButton(
+            icon: Icon(
+              _voiceEnabled ? Icons.volume_up : Icons.volume_off,
+              color: _voiceEnabled
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+            onPressed: () => setState(() => _voiceEnabled = !_voiceEnabled),
+          ),
+          if (_isSpeaking)
+            IconButton(
+              icon: const Icon(Icons.stop_circle, color: AppColors.danger),
+              onPressed: _toggleSpeaking,
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -167,8 +162,11 @@ class _ChatScreenState extends State<ChatScreen>
                 children: [
                   ScaleTransition(
                     scale: _pulseAnimation,
-                    child: const Icon(Icons.mic,
-                        color: AppColors.primary, size: 18),
+                    child: const Icon(
+                      Icons.mic,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   const Text(
@@ -194,8 +192,11 @@ class _ChatScreenState extends State<ChatScreen>
                 children: [
                   ScaleTransition(
                     scale: _pulseAnimation,
-                    child: const Icon(Icons.volume_up,
-                        color: AppColors.accent, size: 18),
+                    child: const Icon(
+                      Icons.volume_up,
+                      color: AppColors.accent,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   const Text(
@@ -217,8 +218,11 @@ class _ChatScreenState extends State<ChatScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.auto_awesome,
-                          size: 60, color: AppColors.primary),
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 60,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(height: 16),
                         const Text(
                           'Liyana Ready',
@@ -283,10 +287,7 @@ class _ChatScreenState extends State<ChatScreen>
                           ? AppColors.primary
                           : AppColors.background,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: 1.5,
-                      ),
+                      border: Border.all(color: AppColors.primary, width: 1.5),
                     ),
                     child: Icon(
                       _isListening ? Icons.mic : Icons.mic_none,
@@ -306,7 +307,7 @@ class _ChatScreenState extends State<ChatScreen>
                     style: const TextStyle(color: Colors.white),
                     onSubmitted: (_) => _sendMessage(),
                     decoration: InputDecoration(
-                        hintText: 'Ask Liyana...',
+                      hintText: 'Ask Liyana...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
@@ -314,7 +315,9 @@ class _ChatScreenState extends State<ChatScreen>
                       filled: true,
                       fillColor: AppColors.background,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -329,8 +332,11 @@ class _ChatScreenState extends State<ChatScreen>
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.send,
-                        color: AppColors.background, size: 20),
+                    child: const Icon(
+                      Icons.send,
+                      color: AppColors.background,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],

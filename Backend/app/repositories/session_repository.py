@@ -23,6 +23,7 @@ class SessionRepository:
         ip_address: str | None = None,
         user_agent: str | None = None,
         is_active: bool = True,
+        expires_at: datetime | None = None,
     ) -> UserSession:
 
         session = UserSession(
@@ -36,6 +37,9 @@ class SessionRepository:
             user_agent=user_agent,
             is_active=is_active,
         )
+
+        if expires_at is not None:
+            session.expires_at = expires_at
 
         self.db.add(session)
         self.db.commit()

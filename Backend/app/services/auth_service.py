@@ -1,8 +1,9 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core.device import parse_user_agent
+from app.core.settings import settings
 from app.core.security import (
     generate_refresh_token,
     hash_password,
@@ -58,6 +59,9 @@ class AuthService:
         if not user:
             raise ValueError("Invalid email or password")
 
+        if not user.is_active:
+            raise ValueError("User account is disabled")
+
         # Verify password
         if not verify_password(
             data.password,
@@ -87,7 +91,14 @@ class AuthService:
             ip_address=ip_address,
             user_agent=user_agent,
             is_active=True,
+            expires_at=datetime.now(UTC) + timedelta(
+                days=settings.refresh_token_expire_days,
+            ),
         )
+
+        user.last_login_at = datetime.now(UTC)
+        db.commit()
+        db.refresh(user)
 
         # Generate access token after the session has been persisted.
         access_token = create_access_token(

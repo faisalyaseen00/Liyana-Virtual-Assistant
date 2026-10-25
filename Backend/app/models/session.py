@@ -97,7 +97,7 @@ class Session(Base):
 
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(UTC) + timedelta(days=30),
+        default=lambda: datetime.now(UTC) + timedelta(days=7),
         nullable=False,
     )
 

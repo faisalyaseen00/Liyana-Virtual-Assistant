@@ -9,6 +9,7 @@ class AIService:
     async def generate_response(
         self,
         history: list[Message],
+        pending_user_message: str | None = None,
     ) -> str:
 
         messages: list[LLMMessage] = [
@@ -18,5 +19,13 @@ class AIService:
             )
             for message in history
         ]
+
+        if pending_user_message is not None:
+            messages.append(
+                LLMMessage(
+                    role="user",
+                    content=pending_user_message,
+                )
+            )
 
         return await self.provider.generate(messages)

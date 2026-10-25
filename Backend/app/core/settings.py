@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Liyana"
+    app_name: str = "Sentinel AI API"
     app_env: str = "development"
     debug: bool = True
 

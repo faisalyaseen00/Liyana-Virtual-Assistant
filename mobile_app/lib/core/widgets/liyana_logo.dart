@@ -21,7 +21,7 @@ class LiyanaLogo extends StatelessWidget {
             width: size,
             height: size,
             child: SvgPicture.asset(
-              'assets/images/liyana_logo.svg',
+              'assets/images/liyana_logoo.svg',
               fit: BoxFit.contain,
             ),
           ),

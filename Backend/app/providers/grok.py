@@ -1,8 +1,8 @@
 from groq import AsyncGroq
 
 from app.core.settings import settings
-from app.services.ai_service import LLMProvider
-from app.services.ai_service import LLMMessage
+from app.core.settings import settings
+from app.providers.base import LLMProvider, LLMMessage
 
 
 class GrokProvider(LLMProvider):

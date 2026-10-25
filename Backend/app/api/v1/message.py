@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.auth import CurrentUser
 from app.dependencies.db import get_db
+from app.models.enums import MessageRole
 from app.schemas.message import (
     MessageCreate,
     MessageResponse,
@@ -34,6 +35,12 @@ def create_message(
     current_user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> MessageResponse:
+
+    if data.role is not MessageRole.USER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Public message creation only supports user messages.",
+        )
 
     service = MessageService(db)
 
