@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Text
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -58,7 +58,8 @@ class Message(Base):
 
     extra_data: Mapped[dict | None] = mapped_column(
         "metadata",
-        JSONB,
+        # JSONB on Postgres; plain JSON so the SQLite test DB can create it.
+        JSONB().with_variant(JSON(), "sqlite"),
         nullable=True,
     )
 

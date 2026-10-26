@@ -48,7 +48,11 @@ static Future<RegisterResponse> register(
     );
   }
 }
-static Future<AuthResponse> refreshToken() async {
+/// Exchanges the stored refresh token for a new access token.
+///
+/// The backend's /auth/refresh only returns a new access token, so the
+/// existing refresh token is kept as-is.
+static Future<String> refreshToken() async {
   final refreshToken =
       await SecureStorage.getRefreshToken();
 
@@ -64,22 +68,16 @@ static Future<AuthResponse> refreshToken() async {
       ).toJson(),
     );
 
-    final auth = AuthResponse.fromJson(
-      response.data,
-    );
+    final accessToken =
+        (response.data as Map)["access_token"] as String;
 
-    await SecureStorage.saveAccessToken(
-      auth.accessToken,
-    );
+    await SecureStorage.saveAccessToken(accessToken);
 
-    await SecureStorage.saveRefreshToken(
-      auth.refreshToken,
-    );
-
-    return auth;
+    return accessToken;
   } on DioException catch (e) {
+    final data = e.response?.data;
     throw Exception(
-      e.response?.data["detail"] ??
+      (data is Map ? data["detail"] : null) ??
           "Session expired.",
     );
   }

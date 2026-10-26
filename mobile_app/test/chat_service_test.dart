@@ -25,13 +25,13 @@ class FakeAdapter implements HttpClientAdapter {
       '"id":"00000000-0000-0000-0000-000000000002",'
       '"conversation_id":"00000000-0000-0000-0000-000000000001",'
       '"role":"user",'
-      '"content":"Hello",'
+      '"content":"Hello"'
       '},'
       '"assistant_message":{'
       '"id":"00000000-0000-0000-0000-000000000003",'
       '"conversation_id":"00000000-0000-0000-0000-000000000001",'
       '"role":"assistant",'
-      '"content":"Hello from Liyana",'
+      '"content":"Hello from Liyana"'
       '}'
       '}',
       200,

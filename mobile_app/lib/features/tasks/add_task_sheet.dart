@@ -147,7 +147,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                border: const BorderSide(color: AppColors.outline) as Border?,
+                border: Border.all(color: AppColors.outline),
               ),
               child: Row(
                 children: [

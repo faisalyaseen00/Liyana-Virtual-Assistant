@@ -1,4 +1,7 @@
+from pydantic import ValidationError
+
 from app.services.ai.router.schemas import RouterResponse
+from app.services.ai.router.validator import validate_router_response
 from app.services.ai.tools.registery import tool_registry
 from app.providers.base import LLMMessage
 
@@ -14,9 +17,33 @@ Classify the user's request into exactly one route:
 Rules:
 - Use only provided tools; never invent or execute them.
 - Use relevant context.
-- If required information cannot be inferred, return `clarification`.
-- Return only valid JSON matching the required schema.
+- If required information cannot be inferred, return `clarification`
+  and put the question to ask the user in `message`.
+- Return only a single JSON object, with no extra text or code fences,
+  in this shape:
+  {"route": "tool" | "conversation" | "clarification",
+   "tool": "<tool name or null>",
+   "arguments": {},
+   "message": "<clarification question or null>"}
 """
+
+
+def parse_router_output(raw: str) -> RouterResponse:
+    """Parse the model's reply, falling back to `conversation` when the
+    reply is not a usable routing decision."""
+    text = raw.strip()
+
+    # Models often wrap JSON in prose or ``` fences; keep only the object.
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        text = text[start : end + 1]
+
+    try:
+        response = RouterResponse.model_validate_json(text)
+        return validate_router_response(response)
+    except (ValidationError, ValueError):
+        return RouterResponse(route="conversation")
 
 
 class SemanticRouter:
@@ -60,4 +87,4 @@ User request:
             ]
         )
 
-        return RouterResponse.model_validate_json(response)
+        return parse_router_output(response)
