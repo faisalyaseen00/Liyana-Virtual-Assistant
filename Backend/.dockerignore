@@ -1,0 +1,22 @@
+# Never put secrets in the image: Railway passes them as variables.
+.env
+.env.*
+!.env.example
+Do-Not-Share/
+
+# Local tooling and caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.db
+
+# Not needed to run the server
+tests/
+docs/
+sample.doc
+docker-compose.yml
