@@ -19,6 +19,6 @@ COPY . .
 RUN useradd --create-home appuser && chown -R appuser /app
 USER appuser
 
-# Railway sets PORT. Migrations run before the server starts, so a new
-# deploy always has an up-to-date database.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+# Runs migrations, then starts uvicorn on $PORT (read in Python, so no
+# shell is needed). See app/serve.py.
+CMD ["python", "-m", "app.serve"]
