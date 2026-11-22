@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String
@@ -6,6 +7,9 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+# Title of a conversation until it gets one from its first message.
+DEFAULT_TITLE = "New Conversation"
 
 
 class Conversation(Base):
@@ -40,7 +44,7 @@ class Conversation(Base):
     # ==========================
     title: Mapped[str] = mapped_column(
         String(255),
-        default="New Chat",
+        default=DEFAULT_TITLE,
         nullable=False,
     )
 

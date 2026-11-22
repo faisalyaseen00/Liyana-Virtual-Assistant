@@ -26,8 +26,28 @@ def upgrade() -> None:
     op.add_column(
         "users", sa.Column("profile_picture", sa.String(length=500), nullable=True)
     )
-    op.add_column("users", sa.Column("timezone", sa.String(length=100), nullable=False))
-    op.add_column("users", sa.Column("language", sa.String(length=50), nullable=False))
+    # Server defaults let existing rows get a value; they are removed below
+    # so the schema matches the model (which sets defaults in Python).
+    op.add_column(
+        "users",
+        sa.Column(
+            "timezone",
+            sa.String(length=100),
+            nullable=False,
+            server_default="UTC",
+        ),
+    )
+    op.add_column(
+        "users",
+        sa.Column(
+            "language",
+            sa.String(length=50),
+            nullable=False,
+            server_default="en",
+        ),
+    )
+    op.alter_column("users", "timezone", server_default=None)
+    op.alter_column("users", "language", server_default=None)
     op.add_column(
         "users", sa.Column("last_login_at", sa.DateTime(timezone=True), nullable=True)
     )

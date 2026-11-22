@@ -20,10 +20,27 @@ class _TaskScreenState extends State<TaskScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    context.read<TaskProvider>().addListener(_showErrors);
+  }
+
+  late final TaskProvider _provider = context.read<TaskProvider>();
+
+  /// Shows server errors (e.g. a failed delete) as a snackbar.
+  void _showErrors() {
+    final message = _provider.errorMessage;
+    if (message == null || !mounted) return;
+    // Only report errors while the list has content; an empty list shows
+    // the error inline with a retry button instead.
+    if (_provider.allTasks.isEmpty) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+    _provider.clearError();
   }
 
   @override
   void dispose() {
+    _provider.removeListener(_showErrors);
     _tabController.dispose();
     super.dispose();
   }
@@ -73,34 +90,90 @@ class _TaskScreenState extends State<TaskScreen>
   }
 
   Widget _buildTaskList(
-      List<Task> tasks, TaskProvider provider, bool isCompleted) {
-    if (tasks.isEmpty) {
+    List<Task> tasks,
+    TaskProvider provider,
+    bool isCompleted,
+  ) {
+    if (tasks.isEmpty && provider.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (provider.allTasks.isEmpty && provider.errorMessage != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off,
+                size: 48,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                provider.errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: provider.loadTasks,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (tasks.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: provider.loadTasks,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Icon(
-              isCompleted ? Icons.check_circle : Icons.task_alt,
-              size: 60,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isCompleted ? 'No completed tasks' : 'No pending tasks',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            SizedBox(
+              height: 400,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isCompleted ? Icons.check_circle : Icons.task_alt,
+                      size: 60,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      isCompleted ? 'No completed tasks' : 'No pending tasks',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: tasks.length,
-      itemBuilder: (context, index) {
-        final task = tasks[index];
-        return _buildTaskCard(task, provider);
-      },
+    return RefreshIndicator(
+      onRefresh: provider.loadTasks,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: tasks.length,
+        itemBuilder: (context, index) {
+          final task = tasks[index];
+          return _buildTaskCard(task, provider);
+        },
+      ),
     );
   }
 
@@ -113,12 +186,11 @@ class _TaskScreenState extends State<TaskScreen>
         border: Border.all(
           color: task.isCompleted
               ? AppColors.outline
-              : _priorityColor(task.priority).withOpacity(0.5),
+              : _priorityColor(task.priority).withValues(alpha: 0.5),
         ),
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: GestureDetector(
           onTap: () => provider.toggleComplete(task.id),
           child: Container(
@@ -133,7 +205,7 @@ class _TaskScreenState extends State<TaskScreen>
                 width: 2,
               ),
               color: task.isCompleted
-                  ? AppColors.success.withOpacity(0.2)
+                  ? AppColors.success.withValues(alpha: 0.2)
                   : Colors.transparent,
             ),
             child: task.isCompleted
@@ -147,8 +219,7 @@ class _TaskScreenState extends State<TaskScreen>
             color: task.isCompleted ? Colors.white38 : Colors.white,
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            decoration:
-                task.isCompleted ? TextDecoration.lineThrough : null,
+            decoration: task.isCompleted ? TextDecoration.lineThrough : null,
           ),
         ),
         subtitle: Column(
@@ -166,13 +237,20 @@ class _TaskScreenState extends State<TaskScreen>
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: _priorityColor(task.priority).withOpacity(0.15),
+                    color: _priorityColor(
+                      task.priority,
+                    ).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: _priorityColor(task.priority).withOpacity(0.5)),
+                      color: _priorityColor(
+                        task.priority,
+                      ).withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Text(
                     task.priority,
@@ -185,13 +263,15 @@ class _TaskScreenState extends State<TaskScreen>
                 ),
                 if (task.deadline != null) ...[
                   const SizedBox(width: 8),
-                  const Icon(Icons.calendar_today,
-                      size: 12, color: Colors.white38),
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 12,
+                    color: Colors.white38,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '${task.deadline!.day}/${task.deadline!.month}/${task.deadline!.year}',
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 12),
+                    style: const TextStyle(color: Colors.white38, fontSize: 12),
                   ),
                 ],
               ],

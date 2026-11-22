@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.utils.dates import is_valid_timezone
 
 
 class UserResponse(BaseModel):
@@ -38,3 +40,10 @@ class UpdateUserRequest(BaseModel):
         default=None,
         max_length=50,
     )
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_timezone(cls, value: str | None) -> str | None:
+        if value is not None and not is_valid_timezone(value):
+            raise ValueError("Unknown time zone; use an IANA name like Asia/Karachi")
+        return value

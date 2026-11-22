@@ -3,6 +3,7 @@ from app.services.ai.tools.defination import (
     CREATE_TASK,
     GET_TASKS,
     CREATE_REMINDER,
+    LIST_REMINDERS,
 )
 
 
@@ -32,3 +33,4 @@ tool_registry = ToolRegistry()
 tool_registry.register(CREATE_TASK)
 tool_registry.register(GET_TASKS)
 tool_registry.register(CREATE_REMINDER)
+tool_registry.register(LIST_REMINDERS)

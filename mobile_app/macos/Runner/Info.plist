@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Liyana uses the microphone so you can talk to it.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Liyana turns your speech into text to understand your requests.</string>
 </dict>
 </plist>

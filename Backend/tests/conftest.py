@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///./_pytest_placeholder.db")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("GROQ_API_KEY", "test-groq-key")
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("DEBUG", "false")
 

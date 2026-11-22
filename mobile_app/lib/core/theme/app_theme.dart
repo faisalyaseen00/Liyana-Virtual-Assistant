@@ -18,8 +18,8 @@ class AppTheme {
       fontFamily: 'Roboto',
       useMaterial3: true,
       dividerColor: AppColors.outline,
-      splashColor: AppColors.primary.withOpacity(0.12),
-      highlightColor: AppColors.primary.withOpacity(0.08),
+      splashColor: AppColors.primary.withValues(alpha: 0.12),
+      highlightColor: AppColors.primary.withValues(alpha: 0.08),
       tabBarTheme: const TabBarThemeData(
         labelColor: Color.fromARGB(255, 175, 160, 209),
         unselectedLabelColor: AppColors.textSecondary,
@@ -76,7 +76,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.background,
-          disabledBackgroundColor: AppColors.primary.withOpacity(0.45),
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.45),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),

@@ -8,54 +8,61 @@ class AuthInterceptor extends Interceptor {
 
   AuthInterceptor(this.dio);
 
+  static const String _retriedKey = "auth_retried";
+
+  /// Called when the session can no longer be refreshed (logged out or
+  /// expired on the server). The app uses it to return to the login screen.
+  static void Function()? onSessionExpired;
+
   @override
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final accessToken =
-        await SecureStorage.getAccessToken();
+    final accessToken = await SecureStorage.getAccessToken();
 
     if (accessToken != null) {
-      options.headers["Authorization"] =
-          "Bearer $accessToken";
+      options.headers["Authorization"] = "Bearer $accessToken";
     }
 
     handler.next(options);
   }
 
   @override
-void onError(
-  DioException err,
-  ErrorInterceptorHandler handler,
-) async {
+  void onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final request = err.requestOptions;
 
-  // Ignore errors that are not authentication related.
-  if (err.response?.statusCode != 401) {
-    handler.next(err);
-    return;
-  }
+    // Only handle expired-token errors, never for the auth endpoints
+    // themselves, and only retry a request once.
+    if (err.response?.statusCode != 401 ||
+        request.path.contains("/auth/") ||
+        request.extra[_retriedKey] == true) {
+      handler.next(err);
+      return;
+    }
 
-  // Never refresh the refresh endpoint.
-  if (err.requestOptions.path.contains("/auth/refresh")) {
-    handler.next(err);
-    return;
-  }
+    final String accessToken;
+    try {
+      accessToken = await AuthService.refreshToken();
+    } catch (_) {
+      // Refresh failed: the session is gone, so sign the user out.
+      await SecureStorage.clearTokens();
+      onSessionExpired?.call();
+      handler.next(err);
+      return;
+    }
 
-  try {
+    request.headers["Authorization"] = "Bearer $accessToken";
+    request.extra[_retriedKey] = true;
 
-    await AuthService.refreshToken();
-
-    // Continue to retry the request in the next phase.
-
-    handler.next(err);
-
-  } catch (_) {
-
-    await SecureStorage.clearTokens();
-
-    handler.next(err);
-
-  }
+    try {
+      final response = await dio.fetch(request);
+      handler.resolve(response);
+    } on DioException catch (retryError) {
+      handler.next(retryError);
+    }
   }
 }

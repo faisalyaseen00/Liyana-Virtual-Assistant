@@ -1,18 +1,23 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+/// Logs API traffic in debug builds. Auth requests carry passwords and
+/// tokens, so their bodies are never printed.
 class ApiInterceptor extends Interceptor {
+  static bool _isSensitive(RequestOptions options) =>
+      options.path.contains("/auth/");
+
   @override
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) {
-    debugPrint(
-      "➡️ ${options.method} ${options.baseUrl}${options.path}",
-    );
+    if (kDebugMode) {
+      debugPrint("➡️ ${options.method} ${options.baseUrl}${options.path}");
 
-    if (options.data != null) {
-      debugPrint("Request Body: ${options.data}");
+      if (options.data != null && !_isSensitive(options)) {
+        debugPrint("Request Body: ${options.data}");
+      }
     }
 
     handler.next(options);
@@ -23,9 +28,9 @@ class ApiInterceptor extends Interceptor {
     Response response,
     ResponseInterceptorHandler handler,
   ) {
-    debugPrint(
-      "✅ ${response.statusCode} ${response.requestOptions.path}",
-    );
+    if (kDebugMode) {
+      debugPrint("✅ ${response.statusCode} ${response.requestOptions.path}");
+    }
 
     handler.next(response);
   }
@@ -35,12 +40,12 @@ class ApiInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) {
-    debugPrint(
-      "❌ ${err.response?.statusCode} ${err.requestOptions.path}",
-    );
+    if (kDebugMode) {
+      debugPrint("❌ ${err.response?.statusCode} ${err.requestOptions.path}");
 
-    if (err.response?.data != null) {
-      debugPrint("Error Body: ${err.response?.data}");
+      if (err.response?.data != null) {
+        debugPrint("Error Body: ${err.response?.data}");
+      }
     }
 
     handler.next(err);

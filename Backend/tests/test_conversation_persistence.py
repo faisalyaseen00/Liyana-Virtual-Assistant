@@ -5,7 +5,7 @@ from app.db.session import SessionLocal
 from app.models.enums import MessageRole
 from app.models.user import User
 from app.repositories.conversation_repository import ConversationRepository
-from app.repositories.meassage_repository import MessageRepository
+from app.repositories.message_repository import MessageRepository
 
 
 def main() -> None:

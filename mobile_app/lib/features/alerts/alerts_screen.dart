@@ -91,7 +91,7 @@ class AlertsScreen extends StatelessWidget {
           border: Border.all(
             color: alert.isRead
                 ? AppColors.outline
-                : color.withOpacity(0.6),
+                : color.withValues(alpha: 0.6),
             width: alert.isRead ? 1 : 1.5,
           ),
         ),
@@ -103,7 +103,7 @@ class AlertsScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),
@@ -120,7 +120,7 @@ class AlertsScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.15),
+                            color: color.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

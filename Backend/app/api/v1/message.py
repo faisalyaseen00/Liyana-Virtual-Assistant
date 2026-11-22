@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.dependencies.auth import CurrentUser
@@ -73,13 +73,19 @@ def get_messages(
     conversation_id: UUID,
     current_user: CurrentUser,
     db: Session = Depends(get_db),
+    limit: int | None = Query(default=None, ge=1, le=200),
+    before: UUID | None = None,
 ) -> list[MessageResponse]:
+    """Messages oldest first. Pass `limit` to get only the newest ones and
+    `before=<message id>` to page further back."""
 
     service = MessageService(db)
 
     messages = service.get_conversation_messages(
         conversation_id=conversation_id,
         user_id=current_user.id,
+        before_id=before,
+        limit=limit,
     )
 
     if messages is None:
@@ -149,6 +155,7 @@ def update_message(
     message = service.update_message(
         message_id=message_id,
         user_id=current_user.id,
+        conversation_id=conversation_id,
         content=data.content,
     )
 
@@ -156,12 +163,6 @@ def update_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Message not found or cannot be updated.",
-        )
-
-    if message.conversation_id != conversation_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Message not found.",
         )
 
     return message
@@ -187,16 +188,11 @@ def delete_message(
     message = service.delete_message(
         message_id=message_id,
         user_id=current_user.id,
+        conversation_id=conversation_id,
     )
 
     if message is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Message not found or cannot be deleted.",
-        )
-
-    if message.conversation_id != conversation_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Message not found.",
         )

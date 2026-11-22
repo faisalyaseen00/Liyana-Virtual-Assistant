@@ -4,10 +4,14 @@ class ChatBubble extends StatelessWidget {
   final String message;
   final bool isUser;
 
+  /// A local error reply (not saved on the server).
+  final bool isError;
+
   const ChatBubble({
     super.key,
     required this.message,
     required this.isUser,
+    this.isError = false,
   });
 
   @override
@@ -21,9 +25,7 @@ class ChatBubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: isUser
-              ? const Color(0xFF7B2FFF)
-              : const Color(0xFF12121A),
+          color: isUser ? const Color(0xFF7B2FFF) : const Color(0xFF12121A),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -32,7 +34,11 @@ class ChatBubble extends StatelessWidget {
           ),
           border: isUser
               ? null
-              : Border.all(color: const Color(0xFF00F5FF).withOpacity(0.3)),
+              : Border.all(
+                  color: isError
+                      ? const Color(0xFFFF7A9A).withValues(alpha: 0.6)
+                      : const Color(0xFF00F5FF).withValues(alpha: 0.3),
+                ),
         ),
         child: Text(
           message,

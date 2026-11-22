@@ -73,6 +73,8 @@ class MessageService:
         *,
         conversation_id: UUID,
         user_id: UUID,
+        before_id: UUID | None = None,
+        limit: int | None = None,
     ) -> list[Message] | None:
 
         conversation = self.conversation_repository.get_by_id_for_user(
@@ -83,8 +85,16 @@ class MessageService:
         if conversation is None:
             return None
 
+        before = None
+        if before_id is not None:
+            before = self.message_repository.get_by_id(before_id)
+            if before is None or before.conversation_id != conversation_id:
+                return None
+
         return self.message_repository.get_by_conversation(
             conversation_id,
+            before=before,
+            limit=limit,
         )
 
     def get_recent_messages(
@@ -113,6 +123,7 @@ class MessageService:
         *,
         message_id: UUID,
         user_id: UUID,
+        conversation_id: UUID | None = None,
         content: str,
     ) -> Message | None:
 
@@ -121,6 +132,9 @@ class MessageService:
         )
 
         if message is None:
+            return None
+
+        if conversation_id is not None and message.conversation_id != conversation_id:
             return None
 
         conversation = self.conversation_repository.get_by_id_for_user(
@@ -144,6 +158,7 @@ class MessageService:
         *,
         message_id: UUID,
         user_id: UUID,
+        conversation_id: UUID | None = None,
     ) -> Message | None:
 
         message = self.message_repository.get_by_id(
@@ -151,6 +166,9 @@ class MessageService:
         )
 
         if message is None:
+            return None
+
+        if conversation_id is not None and message.conversation_id != conversation_id:
             return None
 
         conversation = self.conversation_repository.get_by_id_for_user(
