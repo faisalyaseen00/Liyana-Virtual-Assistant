@@ -1,0 +1,61 @@
+# Builds the Liyana Android app (APK) on GitHub's servers, so no Android SDK
+# is needed locally. Run it from the repo's "Actions" tab, then download the
+# APK from the finished run's "Artifacts" section.
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: Backend URL the app talks to
+        required: true
+        default: https://liyana-virtual-assistant-production.up.railway.app/api/v1
+  push:
+    branches: [main]
+    paths:
+      - "mobile_app/**"
+      - ".github/workflows/build-android.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile_app
+    env:
+      # Manual runs use the URL typed in; pushes use the Railway backend.
+      API_BASE_URL: ${{ github.event.inputs.api_base_url || 'https://liyana-virtual-assistant-production.up.railway.app/api/v1' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.8 # same as local development
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build APK
+        run: flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: liyana-apk
+          path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
