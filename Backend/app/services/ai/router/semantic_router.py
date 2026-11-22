@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from app.services.ai.router.schemas import RouterResponse
 from app.services.ai.router.validator import validate_router_response
 from app.services.ai.tools.registery import tool_registry
+from app.utils.dates import today_label
 from app.providers.base import LLMMessage
 
 
@@ -54,6 +55,7 @@ class SemanticRouter:
         self,
         user_input: str,
         context: str = "",
+        tz: str | None = None,
     ) -> RouterResponse:
 
         tools = tool_registry.list_tools()
@@ -64,7 +66,11 @@ class SemanticRouter:
             for tool in tools
         )
 
-        user_prompt = f"""Available tools:
+        today = today_label(tz)
+
+        user_prompt = f"""Today's date: {today}
+
+Available tools:
 {tool_info}
 
 Context:

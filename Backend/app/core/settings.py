@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     # Grok
     groq_api_key: str
     groq_model: str = "llama-3.1-8b-instant"
+    groq_max_completion_tokens: int = 2048
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,

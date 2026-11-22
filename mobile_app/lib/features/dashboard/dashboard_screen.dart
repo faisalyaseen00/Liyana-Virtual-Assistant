@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../alerts/alerts_screen.dart';
 import '../alerts/alert_provider.dart';
+import '../auth/auth_provider.dart';
+import '../reminders/reminder_provider.dart';
+import '../reminders/reminders_screen.dart';
 import '../tasks/task_provider.dart';
+import '../chat/chat_provider.dart';
 import '../chat/chat_screen.dart';
 import '../tasks/task_screen.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/liyana_logo.dart';
 
@@ -15,8 +20,41 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Tasks, reminders and chats live on the server; fetch them once the
+    // user is in, and reopen the most recent chat.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refresh();
+      context.read<ChatProvider>().openLatest();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Back in the foreground: pick up anything changed meanwhile and
+  /// reschedule reminder notifications.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  void _refresh() {
+    if (!mounted) return;
+    context.read<TaskProvider>().loadTasks();
+    context.read<ReminderProvider>().loadReminders();
+  }
 
   void _setIndex(int index) {
     setState(() => _currentIndex = index);
@@ -26,6 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const _HomeTab(),
     const ChatScreen(),
     const TaskScreen(),
+    const RemindersScreen(),
     const AlertsScreen(),
   ];
 
@@ -33,62 +72,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _screens[_currentIndex],
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          border: Border(
-            top: BorderSide(color: AppColors.outline, width: 0.5),
-          ),
+          border: Border(top: BorderSide(color: AppColors.outline, width: 0.5)),
         ),
         child: Consumer<AlertProvider>(
-  builder: (context, alertProvider, _) {
-    return BottomNavigationBar(
-      currentIndex: _currentIndex,
-      onTap: _setIndex,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      selectedItemColor: AppColors.primary,
-      unselectedItemColor: AppColors.textSecondary,
-      type: BottomNavigationBarType.fixed,
-      items: [
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
-        ),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.smart_toy),
-          label: 'AI Chat',
-        ),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.task_alt),
-          label: 'Tasks',
-        ),
-        BottomNavigationBarItem(
-          icon: Stack(
-            children: [
-              const Icon(Icons.notifications_active),
-              if (alertProvider.unreadCount > 0)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFF4444),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+          builder: (context, alertProvider, _) {
+            return BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: _setIndex,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: AppColors.textSecondary,
+              type: BottomNavigationBarType.fixed,
+              items: [
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard),
+                  label: 'Dashboard',
                 ),
-            ],
-          ),
-          label: 'Alerts',
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.smart_toy),
+                  label: 'AI Chat',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.task_alt),
+                  label: 'Tasks',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.alarm),
+                  label: 'Reminders',
+                ),
+                BottomNavigationBarItem(
+                  icon: Stack(
+                    children: [
+                      const Icon(Icons.notifications_active),
+                      if (alertProvider.unreadCount > 0)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF4444),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  label: 'Alerts',
+                ),
+              ],
+            );
+          },
         ),
-      ],
-    );
-  },
-),
       ),
     );
   }
@@ -105,7 +146,7 @@ class _HomeTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             const SizedBox(height: 24),
             _buildStatsRow(context),
             const SizedBox(height: 24),
@@ -138,7 +179,8 @@ class _HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final name = context.watch<AuthProvider>().displayName;
     final hour = DateTime.now().hour;
     String greeting;
     if (hour < 12) {
@@ -150,34 +192,36 @@ class _HomeTab extends StatelessWidget {
     }
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              greeting,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 14,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                greeting,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 14,
+                ),
               ),
-            ),
-            const Text(
-              'Faisal 👋',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+              Text(
+                name == null ? 'Welcome 👋' : '$name 👋',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
           ),
           child: const SizedBox(
             width: 28,
@@ -185,8 +229,44 @@ class _HomeTab extends StatelessWidget {
             child: LiyanaLogo(size: 28, showWordmark: false),
           ),
         ),
+        IconButton(
+          tooltip: 'Log out',
+          icon: const Icon(Icons.logout, color: AppColors.textSecondary),
+          onPressed: () => _confirmLogout(context),
+        ),
       ],
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    await context.read<AuthProvider>().logout();
+    if (!context.mounted) return;
+    context.read<TaskProvider>().clear();
+    context.read<ReminderProvider>().clear();
+    context.read<ChatProvider>().clear();
+    if (!context.mounted) return;
+
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
   }
 
   Widget _buildStatsRow(BuildContext context) {
@@ -232,7 +312,7 @@ class _HomeTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,7 +330,7 @@ class _HomeTab extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 12,
               ),
             ),
@@ -280,8 +360,8 @@ class _HomeTab extends StatelessWidget {
         'label': 'Reminders',
         'icon': Icons.notifications_active,
         'color': const Color(0xFFFFAA00),
-        'desc': 'Coming soon',
-        'index': 0,
+        'desc': 'Get notified on time',
+        'index': 3,
       },
       {
         'label': 'Workflows',
@@ -316,7 +396,7 @@ class _HomeTab extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF12121A),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.withOpacity(0.4)),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,7 +417,7 @@ class _HomeTab extends StatelessWidget {
                     Text(
                       action['desc'] as String,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
+                        color: Colors.white.withValues(alpha: 0.4),
                         fontSize: 11,
                       ),
                     ),
@@ -356,22 +436,22 @@ class _HomeTab extends StatelessWidget {
       {
         'name': 'Gemini AI',
         'status': 'Ready',
-        'color': const Color(0xFF44FF88)
+        'color': const Color(0xFF44FF88),
       },
       {
         'name': 'Workflow Engine',
         'status': 'Connected',
-        'color': const Color(0xFF44FF88)
+        'color': const Color(0xFF44FF88),
       },
       {
         'name': 'Task Agent',
         'status': 'Active',
-        'color': const Color(0xFF00F5FF)
+        'color': const Color(0xFF00F5FF),
       },
       {
         'name': 'RAG Engine',
         'status': 'Pending',
-        'color': const Color(0xFFFFAA00)
+        'color': const Color(0xFFFFAA00),
       },
     ];
 
@@ -380,8 +460,7 @@ class _HomeTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: const Color(0xFF00F5FF).withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFF00F5FF).withValues(alpha: 0.2)),
       ),
       child: Column(
         children: agents.map((agent) {
@@ -405,7 +484,9 @@ class _HomeTab extends StatelessWidget {
                     Text(
                       agent['name'] as String,
                       style: const TextStyle(
-                          color: Colors.white70, fontSize: 14),
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),

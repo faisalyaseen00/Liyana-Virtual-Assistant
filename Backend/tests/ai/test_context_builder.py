@@ -47,7 +47,7 @@ class RouterStub:
     def __init__(self):
         self.context = None
 
-    async def route(self, user_input, context=""):
+    async def route(self, user_input, context="", tz=None):
         self.context = context
         return RouterResponse(
             route="clarification",

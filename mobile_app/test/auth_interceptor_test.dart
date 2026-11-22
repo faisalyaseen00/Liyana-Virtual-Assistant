@@ -31,12 +31,12 @@ class FakeBackend implements HttpClientAdapter {
   }
 
   ResponseBody _json(String body, int status) => ResponseBody.fromString(
-        body,
-        status,
-        headers: {
-          Headers.contentTypeHeader: [Headers.jsonContentType],
-        },
-      );
+    body,
+    status,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
 
   @override
   void close({bool force = false}) {}

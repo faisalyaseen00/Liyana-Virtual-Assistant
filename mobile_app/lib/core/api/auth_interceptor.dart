@@ -10,6 +10,10 @@ class AuthInterceptor extends Interceptor {
 
   static const String _retriedKey = "auth_retried";
 
+  /// Called when the session can no longer be refreshed (logged out or
+  /// expired on the server). The app uses it to return to the login screen.
+  static void Function()? onSessionExpired;
+
   @override
   void onRequest(
     RequestOptions options,
@@ -40,20 +44,25 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
+    final String accessToken;
     try {
-      final accessToken = await AuthService.refreshToken();
+      accessToken = await AuthService.refreshToken();
+    } catch (_) {
+      // Refresh failed: the session is gone, so sign the user out.
+      await SecureStorage.clearTokens();
+      onSessionExpired?.call();
+      handler.next(err);
+      return;
+    }
 
-      request.headers["Authorization"] = "Bearer $accessToken";
-      request.extra[_retriedKey] = true;
+    request.headers["Authorization"] = "Bearer $accessToken";
+    request.extra[_retriedKey] = true;
 
+    try {
       final response = await dio.fetch(request);
       handler.resolve(response);
     } on DioException catch (retryError) {
       handler.next(retryError);
-    } catch (_) {
-      // Refresh failed: the session is gone, so sign the user out.
-      await SecureStorage.clearTokens();
-      handler.next(err);
     }
   }
 }

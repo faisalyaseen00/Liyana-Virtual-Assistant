@@ -4,6 +4,8 @@ from uuid import uuid4
 import pytest
 
 from app.models.enums import MessageRole
+from app.models.task import Task
+from app.repositories.user_repository import UserRepository
 from app.providers.base import LLMMessage, LLMProvider
 from app.services.chat_service import ChatService
 
@@ -33,18 +35,23 @@ class MessageServiceStub:
 
 
 @pytest.mark.asyncio
-async def test_tool_route_runs_tool_and_saves_result():
+async def test_tool_route_runs_tool_and_saves_result(db_session):
+    user = UserRepository.create(
+        db_session,
+        email=f"chat-{uuid4().hex}@example.com",
+        hashed_password="not-a-real-hash",
+    )
     provider = ToolProvider(
         '{"route":"tool","tool":"create_task",'
         '"arguments":{"title":"Submit assignment","due_date":"2026-11-01"}}'
     )
     message_service = MessageServiceStub()
-    service = ChatService(db=None, provider=provider)
+    service = ChatService(db=db_session, provider=provider)
     service.message_service = message_service
 
     result = await service.send_message(
         conversation_id=uuid4(),
-        user_id=uuid4(),
+        user_id=user.id,
         content="Create a task to submit my assignment by Nov 1",
     )
 
@@ -52,6 +59,11 @@ async def test_tool_route_runs_tool_and_saves_result():
     assert assistant.content == "Task created: Submit assignment (due 2026-11-01)."
     assert assistant.extra_data["tool"] == "create_task"
     assert assistant.extra_data["result"]["title"] == "Submit assignment"
+
+    # The task really is in the database for this user.
+    task = db_session.query(Task).one()
+    assert task.user_id == user.id
+    assert task.title == "Submit assignment"
     assert [item["role"] for item in message_service.created] == [
         MessageRole.USER,
         MessageRole.ASSISTANT,
@@ -59,9 +71,9 @@ async def test_tool_route_runs_tool_and_saves_result():
 
 
 @pytest.mark.asyncio
-async def test_tool_route_with_missing_arguments_asks_for_details():
+async def test_tool_route_with_missing_arguments_asks_for_details(db_session):
     provider = ToolProvider('{"route":"tool","tool":"create_reminder","arguments":{}}')
-    service = ChatService(db=None, provider=provider)
+    service = ChatService(db=db_session, provider=provider)
     service.message_service = MessageServiceStub()
 
     result = await service.send_message(

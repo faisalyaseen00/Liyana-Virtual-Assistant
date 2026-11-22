@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from uuid import UUID, uuid4
 from app.models.conversation import Conversation
 from sqlalchemy import Boolean, DateTime, String
@@ -92,9 +93,19 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     conversations = relationship(
-    "Conversation",
-    back_populates="user",
-    cascade="all, delete-orphan",
+        "Conversation",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    tasks = relationship(
+        "Task",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    reminders = relationship(
+        "Reminder",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
     # ==========================
     # Audit Fields

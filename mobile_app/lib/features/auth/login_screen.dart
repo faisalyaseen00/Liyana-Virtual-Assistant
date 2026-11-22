@@ -137,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       margin: const EdgeInsets.only(bottom: 20),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.15),
+                        color: Colors.red.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.redAccent),
                       ),
@@ -164,6 +164,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Text(
                       'LOGIN',
                     ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  TextButton(
+                    onPressed: authProvider.isLoading
+                        ? null
+                        : () {
+                            authProvider.clearError();
+                            Navigator.pushNamed(context, AppRoutes.register);
+                          },
+                    child: const Text("Don't have an account? Sign up"),
                   ),
                 ],
               ),

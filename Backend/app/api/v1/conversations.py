@@ -5,9 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.auth import CurrentUser
 from app.dependencies.db import get_db
-from app.schemas.conversation import ConversationResponse
 from app.services.conversation_service import ConversationService
-
 from app.schemas.conversation import (
     ConversationResponse,
     ConversationUpdate,

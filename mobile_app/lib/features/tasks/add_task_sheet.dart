@@ -16,6 +16,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   final TextEditingController _descController = TextEditingController();
   String _priority = 'Medium';
   DateTime? _deadline;
+  bool _saving = false;
 
   final List<String> _priorities = ['Low', 'Medium', 'High'];
 
@@ -42,15 +43,29 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     }
   }
 
-  void _submit() {
-    if (_titleController.text.trim().isEmpty) return;
-    Provider.of<TaskProvider>(context, listen: false).addTask(
+  Future<void> _submit() async {
+    if (_titleController.text.trim().isEmpty || _saving) return;
+
+    setState(() => _saving = true);
+    final provider = Provider.of<TaskProvider>(context, listen: false);
+    final saved = await provider.addTask(
       title: _titleController.text.trim(),
       description: _descController.text.trim(),
       priority: _priority,
       deadline: _deadline,
     );
-    Navigator.pop(context);
+    if (!mounted) return;
+
+    if (saved) {
+      Navigator.pop(context);
+    } else {
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Could not add the task.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -72,9 +87,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       decoration: const BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(
-          top: BorderSide(color: AppColors.outline, width: 0.5),
-        ),
+        border: Border(top: BorderSide(color: AppColors.outline, width: 0.5)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -94,50 +107,51 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           TextField(
             controller: _titleController,
             style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Task title *',
-            ),
+            decoration: InputDecoration(hintText: 'Task title *'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _descController,
             style: const TextStyle(color: Colors.white),
             maxLines: 2,
-            decoration: InputDecoration(
-              hintText: 'Description (optional)',
-            ),
+            decoration: InputDecoration(hintText: 'Description (optional)'),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              const Text('Priority:',
-                  style: TextStyle(color: Colors.white70)),
+              const Text('Priority:', style: TextStyle(color: Colors.white70)),
               const SizedBox(width: 12),
-              ..._priorities.map((p) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _priority = p),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
+              ..._priorities.map(
+                (p) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _priority = p),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _priority == p
+                            ? _priorityColor(p)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _priorityColor(p)),
+                      ),
+                      child: Text(
+                        p,
+                        style: TextStyle(
                           color: _priority == p
-                              ? _priorityColor(p)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _priorityColor(p)),
+                              ? Colors.black
+                              : _priorityColor(p),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
-                        child: Text(p,
-                            style: TextStyle(
-                              color: _priority == p
-                                  ? Colors.black
-                                  : _priorityColor(p),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            )),
                       ),
                     ),
-                  )),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -151,8 +165,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today,
-                      color: AppColors.primary, size: 18),
+                  const Icon(
+                    Icons.calendar_today,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     _deadline == null
@@ -160,7 +177,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                         : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}',
                     style: TextStyle(
                       color: _deadline == null
-                          ? Colors.white.withOpacity(0.4)
+                          ? Colors.white.withValues(alpha: 0.4)
                           : Colors.white,
                     ),
                   ),
@@ -170,18 +187,24 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: _submit,
+            onPressed: _saving ? null : _submit,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.background,
             ),
-            child: const Text(
-              'ADD TASK',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
-            ),
+            child: _saving
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'ADD TASK',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
           ),
         ],
       ),

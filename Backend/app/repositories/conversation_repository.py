@@ -1,10 +1,11 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.conversation import Conversation
+from app.models.conversation import DEFAULT_TITLE, Conversation
 
 
 class ConversationRepository:
@@ -15,7 +16,7 @@ class ConversationRepository:
         self,
         *,
         user_id: UUID,
-        title: str = "New Conversation",
+        title: str = DEFAULT_TITLE,
     ) -> Conversation:
 
         conversation = Conversation(

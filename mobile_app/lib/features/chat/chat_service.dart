@@ -18,6 +18,9 @@ class ChatService {
       final response = await _client.post(
         '/conversations/$id/chat',
         data: {'content': content},
+        // The assistant may make two model calls (routing + answer), which
+        // can take longer than the default 15 s timeout.
+        options: Options(receiveTimeout: const Duration(seconds: 90)),
       );
 
       return ChatResult(
@@ -27,12 +30,7 @@ class ChatService {
         ),
       );
     } on DioException catch (error) {
-      final detail = error.response?.data is Map
-          ? (error.response?.data['detail'] as String?)
-          : null;
-      throw ApiException(
-        detail ?? error.message ?? 'Unable to send message.',
-      );
+      throw ApiException.fromDio(error, fallback: 'Unable to send message.');
     }
   }
 

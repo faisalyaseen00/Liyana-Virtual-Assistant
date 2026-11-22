@@ -7,7 +7,14 @@ class VoiceService {
   bool _isInitialized = false;
 
   Future<void> init() async {
-    _isInitialized = await _stt.initialize();
+    _isInitialized = await _stt.initialize(
+      // Clears "listening" in the UI when recognition stops without a final
+      // result (timeout, no speech, permission revoked).
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') _onDone?.call();
+      },
+      onError: (_) => _onDone?.call(),
+    );
     await _tts.setLanguage('en-US');
     await _tts.setSpeechRate(0.5);
     await _tts.setVolume(1.0);
@@ -17,18 +24,36 @@ class VoiceService {
   bool get isAvailable => _isInitialized;
   bool get isListening => _stt.isListening;
 
-  Future<void> startListening(Function(String text) onResult) async {
+  void Function()? _onDone;
+
+  /// Starts listening; returns false when speech recognition is unavailable.
+  /// [onResult] is called once with the final text (empty when nothing was
+  /// recognised).
+  Future<bool> startListening(void Function(String text) onResult) async {
     if (!_isInitialized) await init();
+    if (!_isInitialized) return false;
+
+    var delivered = false;
+    void deliver(String text) {
+      if (delivered) return;
+      delivered = true;
+      _onDone = null;
+      onResult(text);
+    }
+
+    _onDone = () => deliver('');
+
     await _stt.listen(
       onResult: (result) {
         if (result.finalResult) {
-          onResult(result.recognizedWords);
+          deliver(result.recognizedWords);
         }
       },
       listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 3),
       localeId: 'en_US',
     );
+    return true;
   }
 
   Future<void> stopListening() async {
@@ -45,6 +70,7 @@ class VoiceService {
   }
 
   void dispose() {
+    _onDone = null;
     _stt.cancel();
     _tts.stop();
   }

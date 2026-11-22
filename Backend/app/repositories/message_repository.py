@@ -47,17 +47,30 @@ class MessageRepository:
     def get_by_conversation(
         self,
         conversation_id: UUID,
+        *,
+        before: Message | None = None,
+        limit: int | None = None,
     ) -> list[Message]:
+        """Messages oldest first. With `limit`, returns the newest `limit`
+        messages (older than `before`, if given) — for paging back through a
+        long chat."""
 
-        statement = (
-            select(Message)
-            .where(
-                Message.conversation_id == conversation_id
-            )
-            .order_by(Message.created_at.asc())
+        statement = select(Message).where(
+            Message.conversation_id == conversation_id
         )
 
-        return list(self.db.scalars(statement).all())
+        if before is not None:
+            statement = statement.where(Message.created_at < before.created_at)
+
+        if limit is None:
+            return list(
+                self.db.scalars(statement.order_by(Message.created_at.asc())).all()
+            )
+
+        newest_first = self.db.scalars(
+            statement.order_by(Message.created_at.desc()).limit(limit)
+        ).all()
+        return list(reversed(newest_first))
 
     def get_recent_by_conversation(
         self,

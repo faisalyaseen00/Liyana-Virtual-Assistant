@@ -15,7 +15,7 @@ class ConversationProvider(LLMProvider):
     async def generate(self, messages: list[LLMMessage]) -> str:
         self.calls.append(messages)
 
-        if messages[0].role == "system":
+        if "Semantic Router" in messages[0].content:
             return '{"route":"conversation"}'
 
         return "Here is the conversational answer."

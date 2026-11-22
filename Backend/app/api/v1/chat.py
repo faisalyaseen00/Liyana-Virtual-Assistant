@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,6 +9,7 @@ from app.dependencies.db import get_db
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/conversations/{conversation_id}/chat",
@@ -36,6 +38,8 @@ async def send_message(
             content=data.content,
         )
     except Exception as exc:
+        # Keep the real error in the server log; the client gets a 502.
+        logger.exception("Chat request failed")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI provider is unavailable.",

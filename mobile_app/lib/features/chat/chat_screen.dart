@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/voice_service.dart';
+import '../reminders/reminder_provider.dart';
+import '../tasks/task_provider.dart';
 import 'chat_bubble.dart';
-import 'chat_service.dart';
+import 'chat_provider.dart';
+import 'conversations_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -17,11 +21,12 @@ class _ChatScreenState extends State<ChatScreen>
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final VoiceService _voiceService = VoiceService();
-  final ChatService _chatService = ChatService();
-  final List<Map<String, String>> _messages = [];
-  String? _conversationId;
+  late final ChatProvider _chat;
 
-  bool _isLoading = false;
+  // What was shown last frame, to scroll down when it changes.
+  String? _shownConversation;
+  int _shownCount = 0;
+
   bool _isListening = false;
   bool _isSpeaking = false;
   bool _voiceEnabled = false;
@@ -32,7 +37,9 @@ class _ChatScreenState extends State<ChatScreen>
   @override
   void initState() {
     super.initState();
-    _voiceService.init();
+    _chat = context.read<ChatProvider>();
+    _chat.addListener(_onChatChanged);
+    _initVoice();
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -42,72 +49,105 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  Future<void> _sendMessage([String? voiceText]) async {
-    final text = voiceText ?? _controller.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      _messages.add({'role': 'user', 'content': text});
-      _isLoading = true;
-    });
-
-    _controller.clear();
-    _scrollToBottom();
-
-    String reply;
+  Future<void> _initVoice() async {
     try {
-      final result = await _chatService.sendMessage(
-        content: text,
-        conversationId: _conversationId,
-      );
-      _conversationId = result.conversationId;
-      reply = result.response.assistantMessage.content;
+      await _voiceService.init();
     } catch (_) {
-      reply = 'I could not reach Liyana right now.';
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _messages.add({'role': 'ai', 'content': reply});
-      _isLoading = false;
-    });
-
-    _scrollToBottom();
-
-    // Agent speaks the response
-    // Agent speaks only if voice is enabled
-    if (_voiceEnabled) {
-      setState(() => _isSpeaking = true);
-      await _voiceService.speak(reply);
-      setState(() => _isSpeaking = false);
+      // Speech isn't available on every platform (e.g. Linux desktop) or
+      // permission was denied; the mic button reports it when tapped.
     }
   }
 
-  void _toggleListening() async {
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Scroll to the newest message when another conversation is opened or a
+  /// message is added at the end (not when older ones are loaded on top).
+  void _onChatChanged() {
+    final id = _chat.conversationId;
+    final count = _chat.messages.length;
+    final switched = id != _shownConversation && !_chat.isLoadingMessages;
+    final grew = count > _shownCount && !_chat.isLoadingOlder;
+
+    if (switched || (grew && id == _shownConversation)) _scrollToBottom();
+
+    if (!_chat.isLoadingMessages) _shownConversation = id;
+    if (!_chat.isLoadingOlder) _shownCount = count;
+  }
+
+  Future<void> _sendMessage([String? voiceText]) async {
+    final text = (voiceText ?? _controller.text).trim();
+    if (text.isEmpty || _chat.isSending) return;
+
+    _controller.clear();
+    final reply = await _chat.sendMessage(text);
+    if (!mounted) return;
+
+    // The assistant changed tasks or reminders: refresh those tabs (and
+    // reschedule reminder notifications).
+    final tool = reply?.tool;
+    if (tool == 'create_task') {
+      context.read<TaskProvider>().loadTasks();
+    }
+    if (tool == 'create_reminder') {
+      context.read<ReminderProvider>().loadReminders();
+    }
+
+    // Speak the reply (or the error) only if voice is enabled.
+    final spoken = reply?.content ?? _chat.messages.lastOrNull?.content;
+    if (_voiceEnabled && spoken != null) {
+      setState(() => _isSpeaking = true);
+      try {
+        await _voiceService.speak(spoken);
+      } catch (_) {
+        _showSnack('Text-to-speech is not available on this device.');
+      }
+      if (mounted) setState(() => _isSpeaking = false);
+    }
+  }
+
+  Future<void> _toggleListening() async {
     if (_isListening) {
       await _voiceService.stopListening();
-      setState(() => _isListening = false);
-    } else {
-      setState(() => _isListening = true);
-      await _voiceService.startListening((text) {
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    setState(() => _isListening = true);
+    try {
+      final started = await _voiceService.startListening((text) {
+        if (!mounted) return;
         setState(() => _isListening = false);
         if (text.isNotEmpty) {
           _sendMessage(text);
         }
       });
+      if (!started) {
+        if (mounted) setState(() => _isListening = false);
+        _showSnack(
+          'Speech recognition is unavailable. Check microphone permission.',
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isListening = false);
+      _showSnack('Speech recognition is not supported on this device.');
     }
   }
 
-  void _toggleSpeaking() async {
+  Future<void> _toggleSpeaking() async {
     if (_isSpeaking) {
       await _voiceService.stopSpeaking();
-      setState(() => _isSpeaking = false);
+      if (mounted) setState(() => _isSpeaking = false);
     }
   }
 
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (_scrollController.hasClients) {
+      if (mounted && _scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -119,6 +159,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   @override
   void dispose() {
+    _chat.removeListener(_onChatChanged);
     _controller.dispose();
     _scrollController.dispose();
     _pulseController.dispose();
@@ -126,12 +167,35 @@ class _ChatScreenState extends State<ChatScreen>
     super.dispose();
   }
 
+  Future<void> _openHistory() async {
+    _chat.loadConversations();
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ConversationsScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final chat = context.watch<ChatProvider>();
+    final messages = chat.messages;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LIYANA'),
+        title: Text(
+          chat.conversationId == null ? 'LIYANA' : chat.title,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
+          IconButton(
+            tooltip: 'Chat history',
+            icon: const Icon(Icons.history),
+            onPressed: _openHistory,
+          ),
+          IconButton(
+            tooltip: 'New chat',
+            icon: const Icon(Icons.add_comment_outlined),
+            onPressed: chat.isSending ? null : chat.startNewConversation,
+          ),
           IconButton(
             icon: Icon(
               _voiceEnabled ? Icons.volume_up : Icons.volume_off,
@@ -156,7 +220,7 @@ class _ChatScreenState extends State<ChatScreen>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -186,7 +250,7 @@ class _ChatScreenState extends State<ChatScreen>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -213,7 +277,11 @@ class _ChatScreenState extends State<ChatScreen>
 
           // Messages
           Expanded(
-            child: _messages.isEmpty
+            child: chat.isLoadingMessages
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
+                : messages.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -236,7 +304,7 @@ class _ChatScreenState extends State<ChatScreen>
                         Text(
                           'Type or tap the mic to speak',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                             fontSize: 14,
                           ),
                         ),
@@ -245,18 +313,32 @@ class _ChatScreenState extends State<ChatScreen>
                   )
                 : ListView.builder(
                     controller: _scrollController,
-                    itemCount: _messages.length,
+                    itemCount: messages.length + (chat.hasOlder ? 1 : 0),
                     itemBuilder: (context, index) {
-                      final msg = _messages[index];
+                      if (chat.hasOlder) {
+                        if (index == 0) return _buildLoadOlder(chat);
+                        index -= 1;
+                      }
+                      final msg = messages[index];
                       return ChatBubble(
-                        message: msg['content']!,
-                        isUser: msg['role'] == 'user',
+                        message: msg.content,
+                        isUser: msg.isUser,
+                        isError: msg.isError,
                       );
                     },
                   ),
           ),
 
-          if (_isLoading)
+          if (chat.errorMessage != null && messages.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                chat.errorMessage!,
+                style: const TextStyle(color: AppColors.danger),
+              ),
+            ),
+
+          if (chat.isSending)
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: CircularProgressIndicator(
@@ -343,6 +425,28 @@ class _ChatScreenState extends State<ChatScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLoadOlder(ChatProvider chat) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: chat.isLoadingOlder
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              )
+            : TextButton.icon(
+                onPressed: chat.loadOlder,
+                icon: const Icon(Icons.expand_less),
+                label: const Text('Load earlier messages'),
+              ),
       ),
     );
   }
