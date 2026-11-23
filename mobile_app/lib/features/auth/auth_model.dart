@@ -30,25 +30,14 @@ class RegisterResponse {
   final String message;
   final String userId;
 
-  const RegisterResponse({
-    required this.message,
-    required this.userId,
-  });
+  const RegisterResponse({required this.message, required this.userId});
 
-  factory RegisterResponse.fromJson(
-    Map<String, dynamic> json,
-  ) {
-    return RegisterResponse(
-      message: json["message"],
-      userId: json["user_id"],
-    );
+  factory RegisterResponse.fromJson(Map<String, dynamic> json) {
+    return RegisterResponse(message: json["message"], userId: json["user_id"]);
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      "message": message,
-      "user_id": userId,
-    };
+    return {"message": message, "user_id": userId};
   }
 }
 
@@ -56,16 +45,10 @@ class LoginRequest {
   final String email;
   final String password;
 
-  const LoginRequest({
-    required this.email,
-    required this.password,
-  });
+  const LoginRequest({required this.email, required this.password});
 
   Map<String, dynamic> toJson() {
-    return {
-      "email": email,
-      "password": password,
-    };
+    return {"email": email, "password": password};
   }
 }
 
@@ -81,24 +64,16 @@ class RegisterRequest {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      "email": email,
-      "password": password,
-      "full_name": fullName,
-    };
+    return {"email": email, "password": password, "full_name": fullName};
   }
 }
 
 class RefreshTokenRequest {
   final String refreshToken;
 
-  const RefreshTokenRequest({
-    required this.refreshToken,
-  });
+  const RefreshTokenRequest({required this.refreshToken});
 
   Map<String, dynamic> toJson() {
-    return {
-      "refresh_token": refreshToken,
-    };
+    return {"refresh_token": refreshToken};
   }
 }

@@ -29,10 +29,7 @@ class AuthInterceptor extends Interceptor {
   }
 
   @override
-  void onError(
-    DioException err,
-    ErrorInterceptorHandler handler,
-  ) async {
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
     final request = err.requestOptions;
 
     // Only handle expired-token errors, never for the auth endpoints

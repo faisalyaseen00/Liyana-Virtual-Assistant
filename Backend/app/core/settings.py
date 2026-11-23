@@ -15,9 +15,15 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     # Grok
-    groq_api_key: str
+    groq_api_key: str | None = None
     groq_model: str = "llama-3.1-8b-instant"
     groq_max_completion_tokens: int = 2048
+
+    # Google Gemini
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-flash-latest"
+    gemini_fallback_model: str | None = "gemini-flash-lite-latest"
+    gemini_max_output_tokens: int = 2048
 
     @field_validator("database_url")
     @classmethod

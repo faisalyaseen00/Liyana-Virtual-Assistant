@@ -53,22 +53,26 @@ class AlertProvider extends ChangeNotifier {
     final samples = [
       {
         'title': 'Assignment Due Tomorrow',
-        'description': 'Data Structures assignment deadline is tomorrow at 11:59 PM on Google Classroom.',
+        'description':
+            'Data Structures assignment deadline is tomorrow at 11:59 PM on Google Classroom.',
         'type': AlertType.deadline,
       },
       {
         'title': 'Urgent: Quiz in 2 Hours',
-        'description': 'Your OOP quiz starts in 2 hours. Review chapter 5 and 6.',
+        'description':
+            'Your OOP quiz starts in 2 hours. Review chapter 5 and 6.',
         'type': AlertType.urgent,
       },
       {
         'title': 'New Announcement',
-        'description': 'Prof. Ahmed posted a new announcement in Software Engineering classroom.',
+        'description':
+            'Prof. Ahmed posted a new announcement in Software Engineering classroom.',
         'type': AlertType.reminder,
       },
       {
         'title': 'Lab Session Today',
-        'description': 'You have a lab session at 2:00 PM. Don\'t forget your lab manual.',
+        'description':
+            'You have a lab session at 2:00 PM. Don\'t forget your lab manual.',
         'type': AlertType.meeting,
       },
     ];

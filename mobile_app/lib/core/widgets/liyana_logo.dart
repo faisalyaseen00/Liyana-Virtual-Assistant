@@ -1,61 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class LiyanaLogo extends StatelessWidget {
-  const LiyanaLogo({
-    super.key,
-    this.size = 140,
-    this.showWordmark = false,
-  });
+import '../theme/app_colors.dart';
+
+/// The compact Liyana mark: a violet gradient tile with a sparkle. Used for
+/// small spots like the chat avatar and the app bar.
+class LiyanaMark extends StatelessWidget {
+  const LiyanaMark({super.key, this.size = 40});
 
   final double size;
-  final bool showWordmark;
 
   @override
   Widget build(BuildContext context) {
-    if (showWordmark) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: SvgPicture.asset(
-              'assets/images/liyana_logoo.svg',
-              fit: BoxFit.contain,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'LIYANA',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w300,
-              letterSpacing: 7,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'YOUR INTELLIGENT COMPANION',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              letterSpacing: 3.5,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return SvgPicture.asset(
-      'assets/images/liyana_logoo.svg',
+    return Container(
       width: size,
       height: size,
-      fit: BoxFit.contain,
+      decoration: BoxDecoration(
+        gradient: AppColors.brandGradient,
+        borderRadius: BorderRadius.circular(size * 0.3),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: size * 0.3,
+            offset: Offset(0, size * 0.08),
+          ),
+        ],
+      ),
+      child: Icon(Icons.auto_awesome, color: Colors.white, size: size * 0.52),
+    );
+  }
+}
+
+/// The full Liyana logo artwork (it has its own dark background), shown as
+/// a rounded brand card. Used on the splash and sign-in screens.
+class LiyanaLogo extends StatelessWidget {
+  const LiyanaLogo({super.key, this.width = 180});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    // The artwork is 3:2 and includes the "LIYANA" wordmark.
+    return Container(
+      width: width,
+      height: width * 2 / 3,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(width * 0.12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDark.withValues(alpha: 0.25),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SvgPicture.asset(
+        'assets/images/liyana_logoo.svg',
+        fit: BoxFit.cover,
+      ),
     );
   }
 }

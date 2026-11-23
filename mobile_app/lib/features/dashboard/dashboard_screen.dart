@@ -1,17 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../alerts/alerts_screen.dart';
-import '../alerts/alert_provider.dart';
-import '../auth/auth_provider.dart';
-import '../reminders/reminder_provider.dart';
-import '../reminders/reminders_screen.dart';
-import '../tasks/task_provider.dart';
-import '../chat/chat_provider.dart';
-import '../chat/chat_screen.dart';
-import '../tasks/task_screen.dart';
+
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/widgets/liyana_logo.dart';
+import '../../core/widgets/ui_kit.dart';
+import '../alerts/alert_provider.dart';
+import '../alerts/alerts_screen.dart';
+import '../auth/auth_provider.dart';
+import '../chat/chat_provider.dart';
+import '../chat/chat_screen.dart';
+import '../reminders/add_reminder_sheet.dart';
+import '../reminders/reminder_format.dart';
+import '../reminders/reminder_model.dart';
+import '../reminders/reminder_provider.dart';
+import '../reminders/reminders_screen.dart';
+import '../tasks/add_task_sheet.dart';
+import '../tasks/task_model.dart';
+import '../tasks/task_provider.dart';
+import '../tasks/task_screen.dart';
+
+/// Tab positions in the bottom navigation.
+class AppTab {
+  static const home = 0;
+  static const chat = 1;
+  static const tasks = 2;
+  static const reminders = 3;
+  static const alerts = 4;
+}
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -22,7 +37,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
-  int _currentIndex = 0;
+  int _currentIndex = AppTab.home;
 
   @override
   void initState() {
@@ -56,79 +71,63 @@ class _DashboardScreenState extends State<DashboardScreen>
     context.read<ReminderProvider>().loadReminders();
   }
 
-  void _setIndex(int index) {
-    setState(() => _currentIndex = index);
-  }
-
-  final List<Widget> _screens = [
-    const _HomeTab(),
-    const ChatScreen(),
-    const TaskScreen(),
-    const RemindersScreen(),
-    const AlertsScreen(),
-  ];
+  void _setIndex(int index) => setState(() => _currentIndex = index);
 
   @override
   Widget build(BuildContext context) {
+    final unread = context.watch<AlertProvider>().unreadCount;
+
+    Widget alertsIcon(IconData icon) => Badge(
+      isLabelVisible: unread > 0,
+      label: Text('$unread'),
+      child: Icon(icon),
+    );
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: Container(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _HomeTab(onOpenTab: _setIndex),
+          const ChatScreen(),
+          const TaskScreen(),
+          const RemindersScreen(),
+          const AlertsScreen(),
+        ],
+      ),
+      bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.outline, width: 0.5)),
+          border: Border(top: BorderSide(color: AppColors.outline)),
         ),
-        child: Consumer<AlertProvider>(
-          builder: (context, alertProvider, _) {
-            return BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: _setIndex,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              selectedItemColor: AppColors.primary,
-              unselectedItemColor: AppColors.textSecondary,
-              type: BottomNavigationBarType.fixed,
-              items: [
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.dashboard),
-                  label: 'Dashboard',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.smart_toy),
-                  label: 'AI Chat',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.task_alt),
-                  label: 'Tasks',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.alarm),
-                  label: 'Reminders',
-                ),
-                BottomNavigationBarItem(
-                  icon: Stack(
-                    children: [
-                      const Icon(Icons.notifications_active),
-                      if (alertProvider.unreadCount > 0)
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF4444),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  label: 'Alerts',
-                ),
-              ],
-            );
-          },
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _setIndex,
+          destinations: [
+            const NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline_rounded),
+              selectedIcon: Icon(Icons.chat_bubble_rounded),
+              label: 'Chat',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.check_circle_outline_rounded),
+              selectedIcon: Icon(Icons.check_circle_rounded),
+              label: 'Tasks',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.alarm_outlined),
+              selectedIcon: Icon(Icons.alarm_rounded),
+              label: 'Reminders',
+            ),
+            NavigationDestination(
+              icon: alertsIcon(Icons.notifications_none_rounded),
+              selectedIcon: alertsIcon(Icons.notifications_rounded),
+              label: 'Alerts',
+            ),
+          ],
         ),
       ),
     );
@@ -136,106 +135,148 @@ class _DashboardScreenState extends State<DashboardScreen>
 }
 
 class _HomeTab extends StatelessWidget {
-  const _HomeTab();
+  const _HomeTab({required this.onOpenTab});
+
+  final ValueChanged<int> onOpenTab;
+
+  void _openSheet(BuildContext context, Widget sheet) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => sheet,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tasks = context.watch<TaskProvider>();
+    final reminders = context.watch<ReminderProvider>();
+
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      bottom: false,
+      child: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([tasks.loadTasks(), reminders.loadReminders()]);
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
-            _buildHeader(context),
-            const SizedBox(height: 24),
-            _buildStatsRow(context),
-            const SizedBox(height: 24),
-            const Text(
-              'QUICK ACTIONS',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 3,
-              ),
+            const _Header(),
+            const SizedBox(height: 20),
+            _AskCard(onTap: () => onOpenTab(AppTab.chat)),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatTile(
+                    value: tasks.pendingTasks.length,
+                    label: 'Open tasks',
+                    icon: Icons.checklist_rounded,
+                    color: AppColors.primary,
+                    background: AppColors.primarySoft,
+                    onTap: () => onOpenTab(AppTab.tasks),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatTile(
+                    value: tasks.completedTasks.length,
+                    label: 'Completed',
+                    icon: Icons.task_alt_rounded,
+                    color: AppColors.success,
+                    background: AppColors.successSoft,
+                    onTap: () => onOpenTab(AppTab.tasks),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatTile(
+                    value: reminders.upcomingReminders.length,
+                    label: 'Reminders',
+                    icon: Icons.alarm_rounded,
+                    color: AppColors.info,
+                    background: AppColors.infoSoft,
+                    onTap: () => onOpenTab(AppTab.reminders),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            _buildActionCards(context),
             const SizedBox(height: 24),
-            const Text(
-              'AI AGENT STATUS',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 3,
-              ),
+            const SectionHeader(title: 'Quick actions'),
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.add_task_rounded,
+                    label: 'New task',
+                    onTap: () => _openSheet(context, const AddTaskSheet()),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.add_alarm_rounded,
+                    label: 'New reminder',
+                    onTap: () => _openSheet(context, const AddReminderSheet()),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.add_comment_outlined,
+                    label: 'New chat',
+                    onTap: () {
+                      context.read<ChatProvider>().startNewConversation();
+                      onOpenTab(AppTab.chat);
+                    },
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            _buildAgentStatus(),
+            const SizedBox(height: 24),
+            SectionHeader(
+              title: 'Up next',
+              actionLabel: 'See all',
+              onAction: () => onOpenTab(AppTab.reminders),
+            ),
+            _UpNext(reminders: reminders.upcomingReminders.take(3).toList()),
+            const SizedBox(height: 24),
+            SectionHeader(
+              title: 'Due soon',
+              actionLabel: 'See all',
+              onAction: () => onOpenTab(AppTab.tasks),
+            ),
+            _DueSoon(tasks: _soonestFirst(tasks.pendingTasks).take(3).toList()),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    final name = context.watch<AuthProvider>().displayName;
-    final hour = DateTime.now().hour;
-    String greeting;
-    if (hour < 12) {
-      greeting = 'Good Morning';
-    } else if (hour < 17) {
-      greeting = 'Good Afternoon';
-    } else {
-      greeting = 'Good Evening';
-    }
+  /// Tasks with a deadline first (earliest first), then undated ones.
+  static List<Task> _soonestFirst(List<Task> tasks) {
+    final sorted = [...tasks];
+    sorted.sort((a, b) {
+      if (a.deadline == null && b.deadline == null) {
+        return b.createdAt.compareTo(a.createdAt);
+      }
+      if (a.deadline == null) return 1;
+      if (b.deadline == null) return -1;
+      return a.deadline!.compareTo(b.deadline!);
+    });
+    return sorted;
+  }
+}
 
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 14,
-                ),
-              ),
-              Text(
-                name == null ? 'Welcome 👋' : '$name 👋',
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-          ),
-          child: const SizedBox(
-            width: 28,
-            height: 28,
-            child: LiyanaLogo(size: 28, showWordmark: false),
-          ),
-        ),
-        IconButton(
-          tooltip: 'Log out',
-          icon: const Icon(Icons.logout, color: AppColors.textSecondary),
-          onPressed: () => _confirmLogout(context),
-        ),
-      ],
-    );
+class _Header extends StatelessWidget {
+  const _Header();
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
@@ -243,12 +284,14 @@ class _HomeTab extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Log out?'),
+        content: const Text('You can sign back in at any time.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(96, 44)),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Log out'),
           ),
@@ -262,246 +305,434 @@ class _HomeTab extends StatelessWidget {
     context.read<TaskProvider>().clear();
     context.read<ReminderProvider>().clear();
     context.read<ChatProvider>().clear();
-    if (!context.mounted) return;
 
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
   }
 
-  Widget _buildStatsRow(BuildContext context) {
-    return Consumer<TaskProvider>(
-      builder: (context, provider, _) {
-        return Row(
-          children: [
-            _buildStatCard(
-              label: 'Pending',
-              value: '${provider.pendingTasks.length}',
-              icon: Icons.pending_actions,
-              color: AppColors.warning,
-            ),
-            const SizedBox(width: 12),
-            _buildStatCard(
-              label: 'Completed',
-              value: '${provider.completedTasks.length}',
-              icon: Icons.check_circle,
-              color: AppColors.success,
-            ),
-            const SizedBox(width: 12),
-            _buildStatCard(
-              label: 'AI Agent',
-              value: 'ON',
-              icon: Icons.bolt,
-              color: AppColors.primary,
-            ),
-          ],
-        );
-      },
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final name = context.watch<AuthProvider>().displayName;
+    final theme = Theme.of(context);
 
-  Widget _buildStatCard({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_greeting(), style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 2),
+              Text(
+                name == null ? 'Welcome 👋' : 'Hi, $name 👋',
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.headlineSmall,
               ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 12,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildActionCards(BuildContext context) {
-    final actions = [
-      {
-        'label': 'AI Chat',
-        'icon': Icons.smart_toy,
-        'color': const Color(0xFF00F5FF),
-        'desc': 'Talk to Sentinel',
-        'index': 1,
-      },
-      {
-        'label': 'Tasks',
-        'icon': Icons.task_alt,
-        'color': const Color(0xFF7B2FFF),
-        'desc': 'Manage your tasks',
-        'index': 2,
-      },
-      {
-        'label': 'Reminders',
-        'icon': Icons.notifications_active,
-        'color': const Color(0xFFFFAA00),
-        'desc': 'Get notified on time',
-        'index': 3,
-      },
-      {
-        'label': 'Workflows',
-        'icon': Icons.account_tree,
-        'color': const Color(0xFF44FF88),
-        'desc': 'Local automations',
-        'index': 0,
-      },
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.3,
-      ),
-      itemCount: actions.length,
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        final color = action['color'] as Color;
-        return GestureDetector(
-          onTap: () {
-            final parent = context
-                .findAncestorStateOfType<_DashboardScreenState>();
-            parent?._setIndex(action['index'] as int);
+        PopupMenuButton<String>(
+          tooltip: 'Account',
+          position: PopupMenuPosition.under,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          onSelected: (value) {
+            if (value == 'logout') _confirmLogout(context);
           },
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF12121A),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.withValues(alpha: 0.4)),
+          itemBuilder: (_) => const [
+            PopupMenuItem(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(Icons.logout_rounded, size: 20),
+                  SizedBox(width: 12),
+                  Text('Log out'),
+                ],
+              ),
             ),
+          ],
+          child: InitialAvatar(name: name),
+        ),
+      ],
+    );
+  }
+}
+
+/// The violet "Ask Liyana anything" card that opens the chat.
+class _AskCard extends StatelessWidget {
+  const _AskCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.brandGradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.28),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(action['icon'] as IconData, color: color, size: 28),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      action['label'] as String,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      action['desc'] as String,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAgentStatus() {
-    final agents = [
-      {
-        'name': 'Gemini AI',
-        'status': 'Ready',
-        'color': const Color(0xFF44FF88),
-      },
-      {
-        'name': 'Workflow Engine',
-        'status': 'Connected',
-        'color': const Color(0xFF44FF88),
-      },
-      {
-        'name': 'Task Agent',
-        'status': 'Active',
-        'color': const Color(0xFF00F5FF),
-      },
-      {
-        'name': 'RAG Engine',
-        'status': 'Pending',
-        'color': const Color(0xFFFFAA00),
-      },
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12121A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF00F5FF).withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: agents.map((agent) {
-          final color = agent['color'] as Color;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
                     Container(
-                      width: 8,
-                      height: 8,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      agent['name'] as String,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Liyana assistant',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  agent['status'] as String,
+                const SizedBox(height: 16),
+                const Text(
+                  'Ask Liyana anything',
                   style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Plan your day, add tasks or set reminders just by chatting.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Type a message…',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_upward_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          );
-        }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.background,
+    required this.onTap,
+  });
+
+  final int value;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final Color background;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SoftIcon(icon: icon, color: color, background: background, size: 34),
+          const SizedBox(height: 12),
+          Text(
+            '$value',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.primary, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpNext extends StatelessWidget {
+  const _UpNext({required this.reminders});
+
+  final List<Reminder> reminders;
+
+  @override
+  Widget build(BuildContext context) {
+    if (reminders.isEmpty) {
+      return const _EmptyRow(
+        icon: Icons.alarm_off_rounded,
+        text: 'No upcoming reminders. Ask Liyana to remind you of something.',
+      );
+    }
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < reminders.length; i++) ...[
+            if (i > 0) const Divider(indent: 70),
+            _ReminderRow(reminder: reminders[i]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReminderRow extends StatelessWidget {
+  const _ReminderRow({required this.reminder});
+
+  final Reminder reminder;
+
+  @override
+  Widget build(BuildContext context) {
+    final overdue = reminder.dueAt.isBefore(DateTime.now());
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: SoftIcon(
+        icon: Icons.alarm_rounded,
+        color: overdue ? AppColors.danger : AppColors.info,
+        background: overdue ? AppColors.dangerSoft : AppColors.infoSoft,
+        size: 38,
+      ),
+      title: Text(reminder.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        overdue
+            ? 'Overdue · ${formatReminderWhen(reminder, context)}'
+            : formatReminderWhen(reminder, context),
+        style: TextStyle(
+          color: overdue ? AppColors.danger : AppColors.textSecondary,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
+class _DueSoon extends StatelessWidget {
+  const _DueSoon({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tasks.isEmpty) {
+      return const _EmptyRow(
+        icon: Icons.celebration_outlined,
+        text: "You're all caught up. Nothing on your list right now.",
+      );
+    }
+    final provider = context.read<TaskProvider>();
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < tasks.length; i++) ...[
+            if (i > 0) const Divider(indent: 56),
+            _TaskRow(
+              task: tasks[i],
+              onToggle: () => provider.toggleComplete(tasks[i].id),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskRow extends StatelessWidget {
+  const _TaskRow({required this.task, required this.onToggle});
+
+  final Task task;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = priorityColors(task.priority);
+    final overdue =
+        task.deadline != null &&
+        DateUtils.dateOnly(
+          task.deadline!,
+        ).isBefore(DateUtils.dateOnly(DateTime.now()));
+
+    return ListTile(
+      contentPadding: const EdgeInsets.fromLTRB(8, 2, 16, 2),
+      leading: IconButton(
+        tooltip: 'Mark as done',
+        onPressed: onToggle,
+        icon: const Icon(
+          Icons.radio_button_unchecked_rounded,
+          color: AppColors.textMuted,
+        ),
+      ),
+      title: Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            StatusPill(
+              label: task.priority,
+              color: colors.color,
+              background: colors.background,
+            ),
+            if (task.deadline != null)
+              StatusPill(
+                label: overdue
+                    ? 'Overdue · ${friendlyDate(task.deadline!)}'
+                    : friendlyDate(task.deadline!),
+                icon: Icons.event_rounded,
+                color: overdue ? AppColors.danger : AppColors.textSecondary,
+                background: overdue
+                    ? AppColors.dangerSoft
+                    : AppColors.surfaceMuted,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyRow extends StatelessWidget {
+  const _EmptyRow({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Row(
+        children: [
+          SoftIcon(
+            icon: icon,
+            color: AppColors.textMuted,
+            background: AppColors.surfaceMuted,
+            size: 38,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'task_provider.dart';
-import 'task_model.dart';
-import 'add_task_sheet.dart';
+
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/segmented_tabs.dart';
+import '../../core/widgets/ui_kit.dart';
+import 'add_task_sheet.dart';
+import 'task_model.dart';
+import 'task_provider.dart';
 
 class TaskScreen extends StatefulWidget {
   const TaskScreen({super.key});
@@ -14,28 +17,15 @@ class TaskScreen extends StatefulWidget {
 
 class _TaskScreenState extends State<TaskScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late final TabController _tabController;
+  late final TaskProvider _provider;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    context.read<TaskProvider>().addListener(_showErrors);
-  }
-
-  late final TaskProvider _provider = context.read<TaskProvider>();
-
-  /// Shows server errors (e.g. a failed delete) as a snackbar.
-  void _showErrors() {
-    final message = _provider.errorMessage;
-    if (message == null || !mounted) return;
-    // Only report errors while the list has content; an empty list shows
-    // the error inline with a retry button instead.
-    if (_provider.allTasks.isEmpty) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
-    _provider.clearError();
+    _provider = context.read<TaskProvider>();
+    _provider.addListener(_showErrors);
   }
 
   @override
@@ -45,87 +35,73 @@ class _TaskScreenState extends State<TaskScreen>
     super.dispose();
   }
 
+  /// Shows server errors (e.g. a failed delete) as a snackbar while the list
+  /// has content; an empty list shows them inline with a retry button.
+  void _showErrors() {
+    final message = _provider.errorMessage;
+    if (message == null || !mounted || _provider.allTasks.isEmpty) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+    _provider.clearError();
+  }
+
   void _showAddTask() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (_) => const AddTaskSheet(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<TaskProvider>();
+    final pending = provider.pendingTasks;
+    final done = provider.completedTasks;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TASKS'),
-        bottom: TabBar(
+        title: const Text('Tasks'),
+        bottom: SegmentedTabs(
           controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          tabs: const [
-            Tab(text: 'PENDING'),
-            Tab(text: 'COMPLETED'),
-          ],
+          labels: ['To do (${pending.length})', 'Done (${done.length})'],
         ),
       ),
-      body: Consumer<TaskProvider>(
-        builder: (context, provider, _) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildTaskList(provider.pendingTasks, provider, false),
-              _buildTaskList(provider.completedTasks, provider, true),
-            ],
-          );
-        },
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildList(pending, provider, done: false),
+          _buildList(done, provider, done: true),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddTask,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: AppColors.background),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New task'),
       ),
     );
   }
 
-  Widget _buildTaskList(
+  Widget _buildList(
     List<Task> tasks,
-    TaskProvider provider,
-    bool isCompleted,
-  ) {
+    TaskProvider provider, {
+    required bool done,
+  }) {
     if (tasks.isEmpty && provider.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (provider.allTasks.isEmpty && provider.errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.cloud_off,
-                size: 48,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                provider.errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: provider.loadTasks,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
+      return EmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: 'Could not load your tasks',
+        message: provider.errorMessage,
+        actionLabel: 'Try again',
+        onAction: provider.loadTasks,
+        color: AppColors.danger,
+        background: AppColors.dangerSoft,
       );
     }
 
@@ -136,27 +112,23 @@ class _TaskScreenState extends State<TaskScreen>
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(
-              height: 400,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isCompleted ? Icons.check_circle : Icons.task_alt,
-                      size: 60,
-                      color: AppColors.textSecondary,
+              height: 440,
+              child: done
+                  ? const EmptyState(
+                      icon: Icons.task_alt_rounded,
+                      title: 'No completed tasks yet',
+                      message: 'Tasks you finish will show up here.',
+                      color: AppColors.success,
+                      background: AppColors.successSoft,
+                    )
+                  : EmptyState(
+                      icon: Icons.checklist_rounded,
+                      title: 'Nothing to do',
+                      message:
+                          'Add a task, or just tell Liyana: "add a task to…"',
+                      actionLabel: 'Add a task',
+                      onAction: _showAddTask,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      isCompleted ? 'No completed tasks' : 'No pending tasks',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -165,135 +137,149 @@ class _TaskScreenState extends State<TaskScreen>
 
     return RefreshIndicator(
       onRefresh: provider.loadTasks,
-      child: ListView.builder(
+      child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
         itemCount: tasks.length,
-        itemBuilder: (context, index) {
-          final task = tasks[index];
-          return _buildTaskCard(task, provider);
-        },
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, index) =>
+            _TaskCard(task: tasks[index], provider: provider),
       ),
     );
   }
+}
 
-  Widget _buildTaskCard(Task task, TaskProvider provider) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: task.isCompleted
-              ? AppColors.outline
-              : _priorityColor(task.priority).withValues(alpha: 0.5),
+class _TaskCard extends StatelessWidget {
+  const _TaskCard({required this.task, required this.provider});
+
+  final Task task;
+  final TaskProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = priorityColors(task.priority);
+    final overdue =
+        !task.isCompleted &&
+        task.deadline != null &&
+        DateUtils.dateOnly(
+          task.deadline!,
+        ).isBefore(DateUtils.dateOnly(DateTime.now()));
+
+    return Dismissible(
+      key: ValueKey(task.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => provider.deleteTask(task.id),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          color: AppColors.dangerSoft,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.danger,
         ),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: GestureDetector(
-          onTap: () => provider.toggleComplete(task.id),
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: task.isCompleted
-                    ? AppColors.success
-                    : _priorityColor(task.priority),
-                width: 2,
-              ),
-              color: task.isCompleted
-                  ? AppColors.success.withValues(alpha: 0.2)
-                  : Colors.transparent,
-            ),
-            child: task.isCompleted
-                ? const Icon(Icons.check, size: 16, color: AppColors.success)
-                : null,
-          ),
-        ),
-        title: Text(
-          task.title,
-          style: TextStyle(
-            color: task.isCompleted ? Colors.white38 : Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-          ),
-        ),
-        subtitle: Column(
+      child: AppCard(
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 12),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (task.description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  task.description,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+            IconButton(
+              tooltip: task.isCompleted ? 'Mark as not done' : 'Mark as done',
+              onPressed: () => provider.toggleComplete(task.id),
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: task.isCompleted
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        key: ValueKey('done'),
+                        color: AppColors.success,
+                        size: 26,
+                      )
+                    : const Icon(
+                        Icons.radio_button_unchecked_rounded,
+                        key: ValueKey('todo'),
+                        color: AppColors.textMuted,
+                        size: 26,
+                      ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: task.isCompleted
+                            ? AppColors.textMuted
+                            : AppColors.textPrimary,
+                        decoration: task.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                    ),
+                    if (task.description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        task.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        StatusPill(
+                          label: task.priority,
+                          icon: Icons.flag_rounded,
+                          color: task.isCompleted
+                              ? AppColors.textMuted
+                              : colors.color,
+                          background: task.isCompleted
+                              ? AppColors.surfaceMuted
+                              : colors.background,
+                        ),
+                        if (task.deadline != null)
+                          StatusPill(
+                            label: overdue
+                                ? 'Overdue · ${friendlyDate(task.deadline!)}'
+                                : friendlyDate(task.deadline!),
+                            icon: Icons.event_rounded,
+                            color: overdue
+                                ? AppColors.danger
+                                : AppColors.textSecondary,
+                            background: overdue
+                                ? AppColors.dangerSoft
+                                : AppColors.surfaceMuted,
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _priorityColor(
-                      task.priority,
-                    ).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _priorityColor(
-                        task.priority,
-                      ).withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Text(
-                    task.priority,
-                    style: TextStyle(
-                      color: _priorityColor(task.priority),
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (task.deadline != null) ...[
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.calendar_today,
-                    size: 12,
-                    color: Colors.white38,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${task.deadline!.day}/${task.deadline!.month}/${task.deadline!.year}',
-                    style: const TextStyle(color: Colors.white38, fontSize: 12),
-                  ),
-                ],
-              ],
+            ),
+            IconButton(
+              tooltip: 'Delete task',
+              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              color: AppColors.textMuted,
+              onPressed: () => provider.deleteTask(task.id),
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.white24),
-          onPressed: () => provider.deleteTask(task.id),
-        ),
       ),
     );
-  }
-
-  Color _priorityColor(String priority) {
-    switch (priority) {
-      case 'High':
-        return AppColors.danger;
-      case 'Low':
-        return AppColors.success;
-      default:
-        return AppColors.warning;
-    }
   }
 }

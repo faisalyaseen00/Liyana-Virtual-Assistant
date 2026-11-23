@@ -42,13 +42,13 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
-    expect(find.text('NEW REMINDER'), findsOneWidget);
+    expect(find.text('Add reminder'), findsOneWidget, reason: 'sheet is open');
 
     await tester.enterText(find.byType(TextField), 'Water plants');
-    await tester.tap(find.text('ADD REMINDER'));
+    await tester.tap(find.text('Add reminder'));
     await tester.pumpAndSettle();
 
-    expect(find.text('NEW REMINDER'), findsNothing);
+    expect(find.text('Add reminder'), findsNothing, reason: 'sheet closed');
     expect(find.text('Water plants'), findsOneWidget);
     expect(backend.reminders.last['title'], 'Water plants');
   });
