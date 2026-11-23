@@ -21,9 +21,13 @@ class Settings(BaseSettings):
 
     # Google Gemini
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-flash-latest"
-    gemini_fallback_model: str | None = "gemini-flash-lite-latest"
-    gemini_max_output_tokens: int = 2048
+    # flash-lite answers in about 1s; the others are backups (comma
+    # separated) used only while the main model is overloaded.
+    gemini_model: str = "gemini-flash-lite-latest"
+    gemini_fallback_model: str | None = "gemini-3.5-flash,gemini-flash-latest"
+    # Less thinking = faster replies. Empty to use the model's default.
+    gemini_thinking_level: str | None = "minimal"
+    gemini_max_output_tokens: int = 1024
 
     @field_validator("database_url")
     @classmethod
