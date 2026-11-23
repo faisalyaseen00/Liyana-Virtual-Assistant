@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/ui_kit.dart';
+import '../../services/reminder_notifier.dart';
+import '../../services/voice_service.dart';
 import '../alerts/alert_provider.dart';
 import '../alerts/alerts_screen.dart';
 import '../auth/auth_provider.dart';
 import '../chat/chat_provider.dart';
 import '../chat/chat_screen.dart';
+import '../live/live_voice_screen.dart';
 import '../reminders/add_reminder_sheet.dart';
 import '../reminders/reminder_format.dart';
 import '../reminders/reminder_model.dart';
@@ -38,11 +42,14 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   int _currentIndex = AppTab.home;
+  final VoiceService _voice = VoiceService();
+  bool _briefing = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    notificationOpens.addListener(_onOpenedFromNotification);
     // Tasks, reminders and chats live on the server; fetch them once the
     // user is in, and reopen the most recent chat.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -54,8 +61,31 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    notificationOpens.removeListener(_onOpenedFromNotification);
     WidgetsBinding.instance.removeObserver(this);
+    _voice.dispose();
     super.dispose();
+  }
+
+  /// Opened from one of Liyana's notifications: fetch the latest tasks and
+  /// reminders, show the tasks and say out loud what is waiting.
+  Future<void> _onOpenedFromNotification() async {
+    if (!mounted || _briefing) return;
+    _briefing = true;
+    try {
+      final tasks = context.read<TaskProvider>();
+      final reminders = context.read<ReminderProvider>();
+      await Future.wait([tasks.loadTasks(), reminders.loadReminders()]);
+      if (!mounted) return;
+      _setIndex(AppTab.tasks);
+      await _voice.speak(
+        pendingBriefing(tasks.allTasks, reminders.allReminders, DateTime.now()),
+      );
+    } catch (_) {
+      // No text-to-speech on this device; the tasks tab still shows it all.
+    } finally {
+      _briefing = false;
+    }
   }
 
   /// Back in the foreground: pick up anything changed meanwhile and
@@ -164,7 +194,18 @@ class _HomeTab extends StatelessWidget {
           children: [
             const _Header(),
             const SizedBox(height: 20),
-            _AskCard(onTap: () => onOpenTab(AppTab.chat)),
+            _AskCard(
+              onTap: () => onOpenTab(AppTab.chat),
+              onTalk: () {
+                if (AppConstants.liveVoiceEnabled) {
+                  LiveVoiceScreen.open(context);
+                  return;
+                }
+                // Free on-device voice: open the chat and start listening.
+                onOpenTab(AppTab.chat);
+                chatVoiceRequests.value++;
+              },
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -362,9 +403,12 @@ class _Header extends StatelessWidget {
 
 /// The violet "Ask Liyana anything" card that opens the chat.
 class _AskCard extends StatelessWidget {
-  const _AskCard({required this.onTap});
+  const _AskCard({required this.onTap, required this.onTalk});
 
   final VoidCallback onTap;
+
+  /// Starts a live voice call instead of opening the chat.
+  final VoidCallback onTalk;
 
   @override
   Widget build(BuildContext context) {
@@ -427,7 +471,8 @@ class _AskCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Plan your day, add tasks or set reminders just by chatting.',
+                  'Plan your day, add tasks or set reminders. Type, or tap the '
+                  'mic and just talk.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 14,
@@ -452,17 +497,24 @@ class _AskCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
+                      Tooltip(
+                        message: 'Talk to Liyana',
+                        child: Material(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_upward_rounded,
-                          color: Colors.white,
-                          size: 20,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: onTalk,
+                            child: const SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: Icon(
+                                Icons.mic_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Less thinking = faster replies. Empty to use the model's default.
     gemini_thinking_level: str | None = "minimal"
     gemini_max_output_tokens: int = 1024
+    # Real-time voice (Gemini Live): starts answering in about 1.5s.
+    gemini_live_model: str = "gemini-3.1-flash-live-preview"
+    gemini_live_voice: str = "Kore"
 
     @field_validator("database_url")
     @classmethod

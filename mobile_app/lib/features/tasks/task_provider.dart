@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/reminder_notifier.dart';
 import 'task_model.dart';
 import 'task_service.dart';
 
@@ -8,9 +9,14 @@ import 'task_service.dart';
 /// Changes show in the UI straight away and are rolled back if the server
 /// rejects them; [errorMessage] then says what went wrong.
 class TaskProvider extends ChangeNotifier {
-  TaskProvider({TaskService? service}) : _service = service ?? TaskService();
+  TaskProvider({TaskService? service, ReminderNotifier? notifier})
+    : _service = service ?? TaskService(),
+      _notifier = notifier ?? NoopReminderNotifier();
 
   final TaskService _service;
+
+  /// Keeps the evening "you have pending tasks" voice nudges up to date.
+  final ReminderNotifier _notifier;
   List<Task> _tasks = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -28,6 +34,7 @@ class TaskProvider extends ChangeNotifier {
 
     try {
       _tasks = await _service.fetchTasks();
+      _notifier.syncTasks(_tasks);
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -53,6 +60,7 @@ class TaskProvider extends ChangeNotifier {
       _tasks = [..._tasks, task];
       _errorMessage = null;
       notifyListeners();
+      _notifier.syncTasks(_tasks);
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -80,6 +88,7 @@ class TaskProvider extends ChangeNotifier {
       _errorMessage = e.toString();
     }
     notifyListeners();
+    _notifier.syncTasks(_tasks);
   }
 
   Future<void> deleteTask(String id) async {
@@ -97,6 +106,7 @@ class TaskProvider extends ChangeNotifier {
       _errorMessage = e.toString();
     }
     notifyListeners();
+    _notifier.syncTasks(_tasks);
   }
 
   void clearError() {
@@ -110,5 +120,6 @@ class TaskProvider extends ChangeNotifier {
     _errorMessage = null;
     _isLoading = false;
     notifyListeners();
+    _notifier.syncTasks(_tasks);
   }
 }

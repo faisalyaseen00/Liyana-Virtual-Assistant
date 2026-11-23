@@ -1,3 +1,4 @@
+from datetime import date, time, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from app.services.ai.tools.executor import ToolExecutor
 from app.services.ai_service import AIService
 from app.services.conversation_service import ConversationService
 from app.services.message_service import MessageService
+from app.utils.dates import local_today
 
 
 class ChatService:
@@ -80,7 +82,13 @@ class ChatService:
                 user_id,
                 tz,
             )
-            assistant_content, extra_data = await self._run_tool(route, executor)
+            assistant_content, extra_data = await self._run_tool(
+                route,
+                executor,
+                tz,
+                user_input=content,
+                context=context,
+            )
         elif route.message and route.message.strip():
             # The router already answered in the same call; skip a second
             # round trip to the model.
@@ -135,6 +143,10 @@ class ChatService:
         self,
         route: RouterResponse,
         executor: ToolExecutor,
+        tz: str | None = None,
+        *,
+        user_input: str = "",
+        context: str = "",
     ) -> tuple[str, dict[str, Any]]:
         extra_data: dict[str, Any] = {
             "route": "tool",
@@ -144,32 +156,127 @@ class ChatService:
 
         try:
             result = await executor.execute(route)
-        except (TypeError, ValueError):
-            # Missing or unexpected arguments from the model.
-            extra_data["error"] = "invalid_arguments"
-            return (
-                "I couldn't do that yet. Could you give me a few more details?",
-                extra_data,
+        except (TypeError, ValueError) as first_error:
+            # The model misread something (bad date, missing field). Let it
+            # take a second look with the error before bothering the user.
+            result, route, question = await self._repair_and_retry(
+                route,
+                executor,
+                error=first_error,
+                user_input=user_input,
+                context=context,
+                tz=tz,
+            )
+            if question is not None:
+                extra_data["error"] = "invalid_arguments"
+                return question, extra_data
+            extra_data.update(
+                tool=route.tool,
+                arguments=route.arguments,
+                repaired=True,
             )
 
         extra_data["result"] = result
-        return self._describe_tool_result(route.tool, result), extra_data
+        return self._describe_tool_result(route.tool, result, tz), extra_data
+
+    async def _repair_and_retry(
+        self,
+        route: RouterResponse,
+        executor: ToolExecutor,
+        *,
+        error: Exception,
+        user_input: str,
+        context: str,
+        tz: str | None,
+    ) -> tuple[Any, RouterResponse, str | None]:
+        """Returns (result, route used, None) when the corrected call worked,
+        or (None, route, question to ask the user) when it didn't."""
+        fallback = "I couldn't do that yet. Could you give me a few more details?"
+
+        try:
+            fixed = await self.router.repair(
+                user_input,
+                failed=route,
+                error=str(error) or type(error).__name__,
+                context=context,
+                tz=tz,
+            )
+        except Exception:
+            return None, route, fallback
+
+        if fixed.route == "tool" and fixed.tool:
+            try:
+                return await executor.execute(fixed), fixed, None
+            except (TypeError, ValueError):
+                return None, fixed, fallback
+
+        return None, route, (fixed.message or fallback)
 
     @staticmethod
-    def _describe_tool_result(tool: str | None, result: Any) -> str:
+    def _friendly_when(day: str | None, at: str | None, tz: str | None) -> str:
+        """ "2026-11-28", "17:00" -> "Friday 28 Nov at 5 PM" (or "today" /
+        "tomorrow"), easy to read and to say out loud."""
+        if not day:
+            return ""
+        try:
+            when = date.fromisoformat(day)
+        except ValueError:
+            return day
+
+        today = local_today(tz)
+        if when == today:
+            text = "today"
+        elif when == today + timedelta(days=1):
+            text = "tomorrow"
+        elif today < when < today + timedelta(days=7):
+            text = when.strftime("%A")
+        else:
+            text = f"{when:%A} {when.day} {when:%b}"
+
+        if at:
+            try:
+                clock = time.fromisoformat(at)
+            except ValueError:
+                return f"{text} at {at}"
+            hour = clock.hour % 12 or 12
+            minutes = f":{clock.minute:02d}" if clock.minute else ""
+            text += f" at {hour}{minutes} {'AM' if clock.hour < 12 else 'PM'}"
+        return text
+
+    @classmethod
+    def _describe_tool_result(
+        cls,
+        tool: str | None,
+        result: Any,
+        tz: str | None = None,
+    ) -> str:
         result = result or {}
 
         if tool == "create_task":
-            text = f"Task created: {result.get('title')}"
+            text = f"Done! I've added the task \"{result.get('title')}\""
             if result.get("due_date"):
-                text += f" (due {result['due_date']})"
-            return text + "."
+                due = cls._friendly_when(
+                    result["due_date"], result.get("due_time"), tz
+                )
+                text += f", due {due}"
+            text += "."
+
+            reminders = result.get("reminders") or []
+            times = [
+                cls._friendly_when(item.get("date"), item.get("time"), tz)
+                for item in reminders
+            ]
+            if len(times) == 1:
+                text += f" I'll remind you {times[0]}."
+            elif times:
+                text += f" I'll remind you {', '.join(times[:-1])} and {times[-1]}."
+            elif not result.get("due_date"):
+                text += " Tell me the deadline and I'll set a reminder."
+            return text
 
         if tool == "create_reminder":
-            when = result.get("date") or ""
-            if result.get("time"):
-                when = f"{when} at {result['time']}"
-            return f"Reminder set: {result.get('title')} on {when}."
+            when = cls._friendly_when(result.get("date"), result.get("time"), tz)
+            return f"Okay, I'll remind you about \"{result.get('title')}\" {when}."
 
         if tool == "get_tasks":
             tasks = result.get("tasks") or []
