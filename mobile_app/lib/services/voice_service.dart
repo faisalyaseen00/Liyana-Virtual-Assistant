@@ -71,7 +71,9 @@ class VoiceService {
 
   void dispose() {
     _onDone = null;
-    _stt.cancel();
-    _tts.stop();
+    // Ignore failures: speech plugins aren't available on every platform,
+    // and an unhandled error here would surface as a crash report.
+    _stt.cancel().catchError((_) {});
+    _tts.stop().catchError((_) {});
   }
 }

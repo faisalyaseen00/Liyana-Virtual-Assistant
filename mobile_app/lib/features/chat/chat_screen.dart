@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/liyana_logo.dart';
 import '../../services/voice_service.dart';
 import '../reminders/reminder_provider.dart';
 import '../tasks/task_provider.dart';
@@ -44,7 +44,7 @@ class _ChatScreenState extends State<ChatScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+    _pulseAnimation = Tween<double>(begin: 0.85, end: 1.15).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -174,279 +174,385 @@ class _ChatScreenState extends State<ChatScreen>
     ).push(MaterialPageRoute(builder: (_) => const ConversationsScreen()));
   }
 
+  static const _suggestions = [
+    (Icons.wb_sunny_outlined, 'Plan my day'),
+    (Icons.add_task_rounded, 'Add a task to buy groceries'),
+    (Icons.alarm_rounded, 'Remind me tomorrow at 9am to call mom'),
+    (Icons.checklist_rounded, 'What are my tasks?'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final chat = context.watch<ChatProvider>();
     final messages = chat.messages;
+    final hasConversation = chat.conversationId != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          chat.conversationId == null ? 'LIYANA' : chat.title,
-          overflow: TextOverflow.ellipsis,
+        backgroundColor: AppColors.surface,
+        titleSpacing: 16,
+        shape: const Border(bottom: BorderSide(color: AppColors.outline)),
+        title: Row(
+          children: [
+            const LiyanaMark(size: 38),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasConversation ? chat.title : 'Liyana',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    chat.isSending ? 'Typing…' : 'AI assistant · Online',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: chat.isSending
+                          ? AppColors.primary
+                          : AppColors.success,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
+            tooltip: _voiceEnabled
+                ? 'Turn off spoken replies'
+                : 'Speak replies',
+            icon: Icon(
+              _voiceEnabled
+                  ? Icons.volume_up_rounded
+                  : Icons.volume_off_outlined,
+              color: _voiceEnabled ? AppColors.primary : AppColors.textMuted,
+            ),
+            onPressed: () => setState(() => _voiceEnabled = !_voiceEnabled),
+          ),
+          IconButton(
             tooltip: 'Chat history',
-            icon: const Icon(Icons.history),
+            icon: const Icon(Icons.history_rounded),
             onPressed: _openHistory,
           ),
           IconButton(
             tooltip: 'New chat',
-            icon: const Icon(Icons.add_comment_outlined),
+            icon: const Icon(Icons.edit_square),
             onPressed: chat.isSending ? null : chat.startNewConversation,
           ),
-          IconButton(
-            icon: Icon(
-              _voiceEnabled ? Icons.volume_up : Icons.volume_off,
-              color: _voiceEnabled
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-            ),
-            onPressed: () => setState(() => _voiceEnabled = !_voiceEnabled),
-          ),
-          if (_isSpeaking)
-            IconButton(
-              icon: const Icon(Icons.stop_circle, color: AppColors.danger),
-              onPressed: _toggleSpeaking,
-            ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
         children: [
-          // Listening indicator
           if (_isListening)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              color: AppColors.primary.withValues(alpha: 0.1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ScaleTransition(
-                    scale: _pulseAnimation,
-                    child: const Icon(
-                      Icons.mic,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Listening...',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 13,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
+            _StatusBanner(
+              icon: Icons.mic_rounded,
+              text: 'Listening… speak now',
+              color: AppColors.primary,
+              background: AppColors.primarySoft,
+              pulse: _pulseAnimation,
+              actionLabel: 'Stop',
+              onAction: _toggleListening,
             ),
-
-          // Speaking indicator
           if (_isSpeaking)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              color: AppColors.accent.withValues(alpha: 0.1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ScaleTransition(
-                    scale: _pulseAnimation,
-                    child: const Icon(
-                      Icons.volume_up,
-                      color: AppColors.accent,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Liyana is speaking...',
-                    style: TextStyle(
-                      color: AppColors.accent,
-                      fontSize: 13,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
+            _StatusBanner(
+              icon: Icons.volume_up_rounded,
+              text: 'Liyana is speaking',
+              color: AppColors.info,
+              background: AppColors.infoSoft,
+              pulse: _pulseAnimation,
+              actionLabel: 'Stop',
+              onAction: _toggleSpeaking,
             ),
-
-          // Messages
           Expanded(
             child: chat.isLoadingMessages
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )
+                ? const Center(child: CircularProgressIndicator())
                 : messages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.auto_awesome,
-                          size: 60,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Liyana Ready',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Type or tap the mic to speak',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildWelcome(chat)
                 : ListView.builder(
                     controller: _scrollController,
-                    itemCount: messages.length + (chat.hasOlder ? 1 : 0),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    itemCount:
+                        messages.length +
+                        (chat.hasOlder ? 1 : 0) +
+                        (chat.isSending ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (chat.hasOlder) {
                         if (index == 0) return _buildLoadOlder(chat);
                         index -= 1;
                       }
+                      if (index == messages.length) {
+                        return TypingBubble(animation: _pulseController);
+                      }
                       final msg = messages[index];
+                      final previous = index > 0 ? messages[index - 1] : null;
                       return ChatBubble(
                         message: msg.content,
                         isUser: msg.isUser,
                         isError: msg.isError,
+                        // Group consecutive assistant messages under one avatar.
+                        showAvatar:
+                            !msg.isUser &&
+                            (previous == null || previous.isUser),
                       );
                     },
                   ),
           ),
-
           if (chat.errorMessage != null && messages.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
                 chat.errorMessage!,
+                textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.danger),
               ),
             ),
+          _buildInputBar(chat),
+        ],
+      ),
+    );
+  }
 
-          if (chat.isSending)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 2,
-              ),
-            ),
-
-          // Input bar
-          Container(
-            padding: const EdgeInsets.all(AppConstants.padding),
-            decoration: const BoxDecoration(
+  Widget _buildWelcome(ChatProvider chat) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
+      children: [
+        const Center(child: LiyanaMark(size: 64)),
+        const SizedBox(height: 20),
+        const Text(
+          'How can I help you today?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Ask a question, or tell me to add a task or set a reminder. '
+          'You can also tap the mic and talk.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.45,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 28),
+        for (final (icon, text) in _suggestions)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Material(
               color: AppColors.surface,
-              border: Border(
-                top: BorderSide(color: AppColors.outline, width: 0.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: AppColors.outline),
               ),
-            ),
-            child: Row(
-              children: [
-                // Mic button
-                GestureDetector(
-                  onTap: _toggleListening,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _isListening
-                          ? AppColors.primary
-                          : AppColors.background,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary, width: 1.5),
-                    ),
-                    child: Icon(
-                      _isListening ? Icons.mic : Icons.mic_none,
-                      color: _isListening
-                          ? AppColors.background
-                          : AppColors.primary,
-                      size: 20,
-                    ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: chat.isSending ? null : () => _sendMessage(text),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
                   ),
-                ),
-                const SizedBox(width: 8),
-
-                // Text input
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    style: const TextStyle(color: Colors.white),
-                    onSubmitted: (_) => _sendMessage(),
-                    decoration: InputDecoration(
-                      hintText: 'Ask Liyana...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+                  child: Row(
+                    children: [
+                      Icon(icon, size: 20, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          text,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                       ),
-                      filled: true,
-                      fillColor: AppColors.background,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-
-                // Send button
-                GestureDetector(
-                  onTap: _sendMessage,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.send,
-                      color: AppColors.background,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
+      ],
+    );
+  }
+
+  Widget _buildInputBar(ChatProvider chat) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.outline)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            IconButton.filledTonal(
+              tooltip: _isListening ? 'Stop listening' : 'Speak',
+              style: IconButton.styleFrom(
+                backgroundColor: _isListening
+                    ? AppColors.primary
+                    : AppColors.surfaceMuted,
+                foregroundColor: _isListening
+                    ? Colors.white
+                    : AppColors.textSecondary,
+                minimumSize: const Size(46, 46),
+              ),
+              onPressed: _toggleListening,
+              icon: Icon(
+                _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                minLines: 1,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendMessage(),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Message Liyana…',
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 13,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _controller,
+              builder: (context, value, _) {
+                final canSend = value.text.trim().isNotEmpty && !chat.isSending;
+                return IconButton.filled(
+                  tooltip: 'Send',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    disabledBackgroundColor: AppColors.primary.withValues(
+                      alpha: 0.35,
+                    ),
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white,
+                    minimumSize: const Size(46, 46),
+                  ),
+                  onPressed: canSend ? () => _sendMessage() : null,
+                  icon: const Icon(Icons.arrow_upward_rounded),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildLoadOlder(ChatProvider chat) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Center(
         child: chat.isLoadingOlder
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2),
               )
             : TextButton.icon(
                 onPressed: chat.loadOlder,
-                icon: const Icon(Icons.expand_less),
+                icon: const Icon(Icons.expand_less_rounded),
                 label: const Text('Load earlier messages'),
               ),
+      ),
+    );
+  }
+}
+
+/// A thin banner under the app bar while listening or speaking.
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({
+    required this.icon,
+    required this.text,
+    required this.color,
+    required this.background,
+    required this.pulse,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+  final Color background;
+  final Animation<double> pulse;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: background,
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      child: Row(
+        children: [
+          ScaleTransition(
+            scale: pulse,
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(color: color, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: onAction,
+            style: TextButton.styleFrom(foregroundColor: color),
+            child: Text(actionLabel),
+          ),
+        ],
       ),
     );
   }

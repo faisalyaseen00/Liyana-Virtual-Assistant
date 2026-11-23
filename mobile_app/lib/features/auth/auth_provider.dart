@@ -7,7 +7,7 @@ import 'auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider({Future<String?> Function()? timezoneLookup})
-      : _timezoneLookup = timezoneLookup ?? deviceTimezone;
+    : _timezoneLookup = timezoneLookup ?? deviceTimezone;
 
   final Future<String?> Function() _timezoneLookup;
 
@@ -37,10 +37,7 @@ class AuthProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<bool> login({required String email, required String password}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -73,11 +70,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await AuthService.register(
-        RegisterRequest(
-          email: email,
-          password: password,
-          fullName: fullName,
-        ),
+        RegisterRequest(email: email, password: password, fullName: fullName),
       );
       return true;
     } catch (e) {

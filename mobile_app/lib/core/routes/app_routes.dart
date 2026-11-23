@@ -15,11 +15,11 @@ class AppRoutes {
   static const String dashboard = '/dashboard';
 
   static Map<String, WidgetBuilder> get routes => {
-        splash: (_) => const SplashScreen(),
-        login: (_) => const LoginScreen(),
-        register: (_) => const RegisterScreen(),
-        dashboard: (_) => const DashboardScreen(),
-        chat: (_) => const ChatScreen(),
-        tasks: (_) => const TaskScreen(),
-      };
+    splash: (_) => const SplashScreen(),
+    login: (_) => const LoginScreen(),
+    register: (_) => const RegisterScreen(),
+    dashboard: (_) => const DashboardScreen(),
+    chat: (_) => const ChatScreen(),
+    tasks: (_) => const TaskScreen(),
+  };
 }

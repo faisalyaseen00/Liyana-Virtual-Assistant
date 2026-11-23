@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 from app.ai.context.builder import ContextBuilder
 from app.models.enums import MessageRole
 from app.models.message import Message
+from app.providers import get_default_provider
 from app.providers.base import LLMProvider
-from app.providers.grok import GrokProvider
+from app.repositories.user_repository import UserRepository
 from app.services.ai.router.schemas import RouterResponse
 from app.services.ai.router.semantic_router import SemanticRouter
 from app.services.ai.tools.executor import ToolExecutor
 from app.services.ai_service import AIService
-from app.repositories.user_repository import UserRepository
 from app.services.conversation_service import ConversationService
 from app.services.message_service import MessageService
 
@@ -31,7 +31,7 @@ class ChatService:
             db,
             self.message_service,
         )
-        provider = provider or GrokProvider()
+        provider = provider or get_default_provider()
         self.router = SemanticRouter(provider)
         self.ai_service = AIService(provider=provider)
         # None: build one per request for the user who is chatting.

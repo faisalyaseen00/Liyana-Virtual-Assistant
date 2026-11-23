@@ -20,10 +20,10 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.text('NEW TASK'), findsOneWidget);
+    expect(find.text('New task'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).first, 'Submit assignment');
-    await tester.tap(find.text('ADD TASK'));
+    await tester.tap(find.text('Add task'));
     await tester.pumpAndSettle();
 
     expect(provider.pendingTasks.single.title, 'Submit assignment');

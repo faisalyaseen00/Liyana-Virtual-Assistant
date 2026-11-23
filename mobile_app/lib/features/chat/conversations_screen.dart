@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/ui_kit.dart';
 import 'chat_provider.dart';
 import 'conversation_model.dart';
 
@@ -15,18 +16,14 @@ class ConversationsScreen extends StatelessWidget {
     final conversations = chat.conversations;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('CHATS'),
-        actions: [
-          IconButton(
-            tooltip: 'New chat',
-            icon: const Icon(Icons.add_comment_outlined),
-            onPressed: () {
-              chat.startNewConversation();
-              Navigator.pop(context);
-            },
-          ),
-        ],
+      appBar: AppBar(title: const Text('Chats')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          chat.startNewConversation();
+          Navigator.pop(context);
+        },
+        icon: const Icon(Icons.add_comment_outlined),
+        label: const Text('New chat'),
       ),
       body: RefreshIndicator(
         onRefresh: chat.loadConversations,
@@ -35,30 +32,26 @@ class ConversationsScreen extends StatelessWidget {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   SizedBox(
-                    height: 400,
-                    child: Center(
-                      child: chat.isLoadingConversations
-                          ? const CircularProgressIndicator(
-                              color: AppColors.primary,
-                            )
-                          : Text(
-                              chat.errorMessage ?? 'No chats yet',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 16,
-                              ),
-                            ),
-                    ),
+                    height: 480,
+                    child: chat.isLoadingConversations
+                        ? const Center(child: CircularProgressIndicator())
+                        : EmptyState(
+                            icon: Icons.forum_outlined,
+                            title: chat.errorMessage == null
+                                ? 'No chats yet'
+                                : 'Could not load your chats',
+                            message:
+                                chat.errorMessage ??
+                                'Your conversations with Liyana will appear here.',
+                          ),
                   ),
                 ],
               )
             : ListView.separated(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 itemCount: conversations.length,
-                separatorBuilder: (_, _) =>
-                    const Divider(height: 1, color: AppColors.outline),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) => _ConversationTile(
                   conversation: conversations[index],
                   isOpen: conversations[index].id == chat.conversationId,
@@ -90,10 +83,8 @@ class _ConversationTile extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: AppColors.danger),
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -155,31 +146,69 @@ class _ConversationTile extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        color: AppColors.danger.withValues(alpha: 0.25),
-        child: const Icon(Icons.delete_outline, color: AppColors.danger),
+        decoration: BoxDecoration(
+          color: AppColors.dangerSoft,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.danger,
+        ),
       ),
-      child: ListTile(
-        selected: isOpen,
-        selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
-        leading: Icon(
-          Icons.chat_bubble_outline,
-          color: isOpen ? AppColors.primary : AppColors.textSecondary,
-        ),
-        title: Text(
-          conversation.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white),
-        ),
-        subtitle: Text(
-          formatChatTime(conversation.lastMessageAt),
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-        ),
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        color: isOpen ? AppColors.primarySoft : AppColors.surface,
+        borderColor: isOpen
+            ? AppColors.primary.withValues(alpha: 0.35)
+            : AppColors.outline,
         onTap: () {
           context.read<ChatProvider>().openConversation(conversation.id);
           Navigator.pop(context);
         },
-        onLongPress: () => _rename(context),
+        child: Row(
+          children: [
+            SoftIcon(
+              icon: Icons.chat_bubble_outline_rounded,
+              color: isOpen ? AppColors.primaryDark : AppColors.primary,
+              background: isOpen ? AppColors.surface : AppColors.primarySoft,
+              size: 40,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    conversation.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isOpen
+                        ? 'Open now · ${formatChatTime(conversation.lastMessageAt)}'
+                        : formatChatTime(conversation.lastMessageAt),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Rename',
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              color: AppColors.textMuted,
+              onPressed: () => _rename(context),
+            ),
+          ],
+        ),
       ),
     );
   }

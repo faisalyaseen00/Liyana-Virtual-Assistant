@@ -1,232 +1,199 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/theme/app_colors.dart';
+import '../../core/widgets/ui_kit.dart';
 import 'alert_model.dart';
 import 'alert_provider.dart';
-import '../../core/theme/app_colors.dart';
 
 class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AlertProvider>();
+    final alerts = provider.allAlerts;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ALERTS'),
+        title: const Text('Alerts'),
         actions: [
-          TextButton(
-            onPressed: () =>
-                Provider.of<AlertProvider>(context, listen: false)
-                    .markAllAsRead(),
-            child: const Text(
-              'Mark all read',
-              style: TextStyle(color: AppColors.primary, fontSize: 12),
+          if (provider.unreadCount > 0)
+            TextButton(
+              onPressed: provider.markAllAsRead,
+              child: const Text('Mark all read'),
             ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: Consumer<AlertProvider>(
-        builder: (context, provider, _) {
-          if (provider.allAlerts.isEmpty) {
-            return Center(
+      body: alerts.isEmpty
+          ? const EmptyState(
+              icon: Icons.notifications_none_rounded,
+              title: "You're all caught up",
+              message:
+                  'Alerts about deadlines, meetings and reminders will appear here.',
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+              itemCount: alerts.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) =>
+                  _AlertCard(alert: alerts[index], provider: provider),
+            ),
+      // Alerts are sample data until the backend sends real ones.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: provider.simulateAgentAlert,
+        icon: const Icon(Icons.bolt_rounded),
+        label: const Text('Sample alert'),
+      ),
+    );
+  }
+}
+
+class _AlertCard extends StatelessWidget {
+  const _AlertCard({required this.alert, required this.provider});
+
+  final Alert alert;
+  final AlertProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _styleFor(alert.type);
+
+    return Dismissible(
+      key: ValueKey(alert.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => provider.deleteAlert(alert.id),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          color: AppColors.dangerSoft,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.danger,
+        ),
+      ),
+      child: AppCard(
+        onTap: () => provider.markAsRead(alert.id),
+        color: alert.isRead ? AppColors.surface : const Color(0xFFFBFAFF),
+        borderColor: alert.isRead
+            ? AppColors.outline
+            : AppColors.primary.withValues(alpha: 0.25),
+        padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SoftIcon(
+              icon: style.icon,
+              color: style.color,
+              background: style.background,
+              size: 42,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.notifications_off,
-                      size: 60, color: Colors.white12),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No alerts yet',
-                    style: TextStyle(color: Colors.white38, fontSize: 16),
+                  Row(
+                    children: [
+                      StatusPill(
+                        label: style.label,
+                        color: style.color,
+                        background: style.background,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _timeAgo(alert.createdAt),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (!alert.isRead)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Agent will notify you about\nGoogle Classroom & deadlines',
-                    textAlign: TextAlign.center,
+                    alert.title,
                     style: TextStyle(
-                        color: Colors.white24, fontSize: 13),
+                      fontSize: 15,
+                      fontWeight: alert.isRead
+                          ? FontWeight.w600
+                          : FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    alert.description,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.allAlerts.length,
-            itemBuilder: (context, index) {
-              final alert = provider.allAlerts[index];
-              return _buildAlertCard(context, alert, provider);
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            Provider.of<AlertProvider>(context, listen: false)
-                .simulateAgentAlert(),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.background,
-        icon: const Icon(Icons.bolt),
-        label: const Text(
-          'Simulate Agent',
-          style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              tooltip: 'Dismiss',
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: AppColors.textMuted,
+              onPressed: () => provider.deleteAlert(alert.id),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildAlertCard(
-      BuildContext context, Alert alert, AlertProvider provider) {
-    final color = _alertColor(alert.type);
-    final icon = _alertIcon(alert.type);
-    final label = _alertLabel(alert.type);
-
-    return GestureDetector(
-      onTap: () => provider.markAsRead(alert.id),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-              color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: alert.isRead
-                ? AppColors.outline
-                : color.withValues(alpha: 0.6),
-            width: alert.isRead ? 1 : 1.5,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              color: color,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                        if (!alert.isRead)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      alert.title,
-                      style: TextStyle(
-                        color: alert.isRead
-                            ? Colors.white54
-                            : Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      alert.description,
-                      style: const TextStyle(
-                          color: Colors.white54, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _timeAgo(alert.createdAt),
-                          style: const TextStyle(
-                              color: Colors.white24, fontSize: 11),
-                        ),
-                        GestureDetector(
-                          onTap: () => provider.deleteAlert(alert.id),
-                          child: const Icon(Icons.close,
-                              color: Colors.white24, size: 16),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _alertColor(AlertType type) {
+  static ({IconData icon, String label, Color color, Color background})
+  _styleFor(AlertType type) {
     switch (type) {
       case AlertType.urgent:
-        return AppColors.danger;
+        return (
+          icon: Icons.priority_high_rounded,
+          label: 'Urgent',
+          color: AppColors.danger,
+          background: AppColors.dangerSoft,
+        );
       case AlertType.deadline:
-        return AppColors.warning;
+        return (
+          icon: Icons.hourglass_bottom_rounded,
+          label: 'Deadline',
+          color: AppColors.warning,
+          background: AppColors.warningSoft,
+        );
       case AlertType.meeting:
-        return AppColors.primary;
+        return (
+          icon: Icons.groups_rounded,
+          label: 'Meeting',
+          color: AppColors.info,
+          background: AppColors.infoSoft,
+        );
       case AlertType.reminder:
-        return AppColors.accent;
+        return (
+          icon: Icons.notifications_active_rounded,
+          label: 'Reminder',
+          color: AppColors.primary,
+          background: AppColors.primarySoft,
+        );
     }
   }
 
-  IconData _alertIcon(AlertType type) {
-    switch (type) {
-      case AlertType.urgent:
-        return Icons.warning_amber_rounded;
-      case AlertType.deadline:
-        return Icons.timer;
-      case AlertType.meeting:
-        return Icons.groups;
-      case AlertType.reminder:
-        return Icons.notifications_active;
-    }
-  }
-
-  String _alertLabel(AlertType type) {
-    switch (type) {
-      case AlertType.urgent:
-        return 'URGENT';
-      case AlertType.deadline:
-        return 'DEADLINE';
-      case AlertType.meeting:
-        return 'MEETING';
-      case AlertType.reminder:
-        return 'REMINDER';
-    }
-  }
-
-  String _timeAgo(DateTime time) {
+  static String _timeAgo(DateTime time) {
     final diff = DateTime.now().difference(time);
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';

@@ -8,10 +8,7 @@ class ApiInterceptor extends Interceptor {
       options.path.contains("/auth/");
 
   @override
-  void onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (kDebugMode) {
       debugPrint("➡️ ${options.method} ${options.baseUrl}${options.path}");
 
@@ -24,10 +21,7 @@ class ApiInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(
-    Response response,
-    ResponseInterceptorHandler handler,
-  ) {
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
     if (kDebugMode) {
       debugPrint("✅ ${response.statusCode} ${response.requestOptions.path}");
     }
@@ -36,10 +30,7 @@ class ApiInterceptor extends Interceptor {
   }
 
   @override
-  void onError(
-    DioException err,
-    ErrorInterceptorHandler handler,
-  ) {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
     if (kDebugMode) {
       debugPrint("❌ ${err.response?.statusCode} ${err.requestOptions.path}");
 

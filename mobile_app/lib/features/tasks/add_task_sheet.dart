@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_constants.dart';
+
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/ui_kit.dart';
 import 'task_provider.dart';
 
 class AddTaskSheet extends StatefulWidget {
@@ -18,29 +19,15 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   DateTime? _deadline;
   bool _saving = false;
 
-  final List<String> _priorities = ['Low', 'Medium', 'High'];
-
   Future<void> _pickDeadline() async {
+    final today = DateUtils.dateOnly(DateTime.now());
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
-              surface: AppColors.surface,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      initialDate: _deadline ?? today,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365 * 2)),
     );
-    if (picked != null) {
-      setState(() => _deadline = picked);
-    }
+    if (picked != null) setState(() => _deadline = picked);
   }
 
   Future<void> _submit() async {
@@ -77,148 +64,147 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        left: 20,
+        right: 20,
+        top: 12,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: AppColors.outline, width: 0.5)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'NEW TASK',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.primary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 3,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SheetHandle(),
+            Text('New task', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _titleController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppColors.textPrimary,
+              ),
+              decoration: const InputDecoration(
+                hintText: 'What do you need to do?',
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _titleController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(hintText: 'Task title *'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _descController,
-            style: const TextStyle(color: Colors.white),
-            maxLines: 2,
-            decoration: InputDecoration(hintText: 'Description (optional)'),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Text('Priority:', style: TextStyle(color: Colors.white70)),
-              const SizedBox(width: 12),
-              ..._priorities.map(
-                (p) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _priority = p),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _priority == p
-                            ? _priorityColor(p)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _priorityColor(p)),
-                      ),
-                      child: Text(
-                        p,
-                        style: TextStyle(
-                          color: _priority == p
-                              ? Colors.black
-                              : _priorityColor(p),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descController,
+              maxLines: 2,
+              textCapitalization: TextCapitalization.sentences,
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.textPrimary,
+              ),
+              decoration: const InputDecoration(hintText: 'Notes (optional)'),
+            ),
+            const SizedBox(height: 20),
+            const _FieldLabel('Priority'),
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [
+                for (final p in const ['Low', 'Medium', 'High'])
+                  ButtonSegment(
+                    value: p,
+                    label: Text(p),
+                    icon: Icon(
+                      Icons.flag_rounded,
+                      size: 16,
+                      color: priorityColors(p).color,
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _pickDeadline,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                border: Border.all(color: AppColors.outline),
-              ),
+              ],
+              selected: {_priority},
+              onSelectionChanged: (value) =>
+                  setState(() => _priority = value.first),
+            ),
+            const SizedBox(height: 20),
+            const _FieldLabel('Due date'),
+            AppCard(
+              onTap: _pickDeadline,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              radius: 14,
               child: Row(
                 children: [
                   const Icon(
-                    Icons.calendar_today,
+                    Icons.event_rounded,
                     color: AppColors.primary,
-                    size: 18,
+                    size: 20,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _deadline == null
-                        ? 'Set deadline (optional)'
-                        : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}',
-                    style: TextStyle(
-                      color: _deadline == null
-                          ? Colors.white.withValues(alpha: 0.4)
-                          : Colors.white,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _deadline == null
+                          ? 'No due date'
+                          : friendlyDate(_deadline!),
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: _deadline == null
+                            ? AppColors.textMuted
+                            : AppColors.textPrimary,
+                      ),
                     ),
                   ),
+                  if (_deadline != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _deadline = null),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textMuted,
+                    ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _saving ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _saving ? null : _submit,
+              child: _saving
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Add task'),
             ),
-            child: _saving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text(
-                    'ADD TASK',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  Color _priorityColor(String priority) {
-    switch (priority) {
-      case 'High':
-        return AppColors.danger;
-      case 'Low':
-        return AppColors.success;
-      default:
-        return AppColors.warning;
-    }
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+      ),
+    );
   }
 }

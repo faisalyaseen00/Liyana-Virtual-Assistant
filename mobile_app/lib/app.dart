@@ -13,10 +13,10 @@ class SentinelApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LIYANA',
+      title: 'Liyana',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       initialRoute: AppRoutes.splash,
       routes: AppRoutes.routes,
     );
