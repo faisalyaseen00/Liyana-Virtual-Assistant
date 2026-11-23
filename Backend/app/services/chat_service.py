@@ -81,6 +81,10 @@ class ChatService:
                 tz,
             )
             assistant_content, extra_data = await self._run_tool(route, executor)
+        elif route.message and route.message.strip():
+            # The router already answered in the same call; skip a second
+            # round trip to the model.
+            assistant_content = route.message.strip()
         else:
             assistant_content = await self.ai_service.generate_response(
                 history=history,

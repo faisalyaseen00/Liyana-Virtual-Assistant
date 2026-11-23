@@ -7,8 +7,8 @@ from app.services.message_service import MessageService
 
 
 class ContextBuilder:
-    MAX_MESSAGES = 5
-    MAX_MESSAGE_LENGTH = 240
+    MAX_MESSAGES = 10
+    MAX_MESSAGE_LENGTH = 800
 
     def __init__(
         self,

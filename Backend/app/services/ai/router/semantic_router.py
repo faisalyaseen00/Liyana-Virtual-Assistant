@@ -20,12 +20,15 @@ Rules:
 - Use relevant context.
 - If required information cannot be inferred, return `clarification`
   and put the question to ask the user in `message`.
+- For `conversation`, you are Liyana, a friendly and helpful personal
+  virtual assistant: put your full, clear, concise reply to the user in
+  `message`.
 - Return only a single JSON object, with no extra text or code fences,
   in this shape:
   {"route": "tool" | "conversation" | "clarification",
    "tool": "<tool name or null>",
    "arguments": {},
-   "message": "<clarification question or null>"}
+   "message": "<reply, clarification question, or null>"}
 """
 
 
@@ -80,6 +83,12 @@ User request:
 {user_input}
 """
 
+        options = (
+            {"json_mode": True}
+            if getattr(self.provider, "supports_json_mode", False)
+            else {}
+        )
+
         response = await self.provider.generate(
             [
                 LLMMessage(
@@ -90,7 +99,8 @@ User request:
                     role="user",
                     content=user_prompt,
                 ),
-            ]
+            ],
+            **options,
         )
 
         return parse_router_output(response)
