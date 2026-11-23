@@ -17,11 +17,12 @@ void main() {
   ApiClient.initialize();
 
   final authProvider = AuthProvider();
-  final taskProvider = TaskProvider();
+  // One notifier for both, so reminders and pending-task nudges are
+  // scheduled together.
+  final notifier = LocalReminderNotifier.create();
+  final taskProvider = TaskProvider(notifier: notifier);
   final chatProvider = ChatProvider();
-  final reminderProvider = ReminderProvider(
-    notifier: LocalReminderNotifier.create(),
-  );
+  final reminderProvider = ReminderProvider(notifier: notifier);
 
   // When the server session ends (logout elsewhere, expiry), drop back to
   // the login screen instead of leaving the user on a broken screen.

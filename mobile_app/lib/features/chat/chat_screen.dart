@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/liyana_logo.dart';
 import '../../services/voice_service.dart';
@@ -8,6 +9,10 @@ import '../tasks/task_provider.dart';
 import 'chat_bubble.dart';
 import 'chat_provider.dart';
 import 'conversations_screen.dart';
+import '../live/live_voice_screen.dart';
+
+/// Bump to make the chat start listening, e.g. from the home screen mic.
+final ValueNotifier<int> chatVoiceRequests = ValueNotifier<int>(0);
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -39,6 +44,7 @@ class _ChatScreenState extends State<ChatScreen>
     super.initState();
     _chat = context.read<ChatProvider>();
     _chat.addListener(_onChatChanged);
+    chatVoiceRequests.addListener(_onVoiceRequested);
     _initVoice();
     _pulseController = AnimationController(
       vsync: this,
@@ -82,27 +88,31 @@ class _ChatScreenState extends State<ChatScreen>
   Future<void> _sendMessage([String? voiceText]) async {
     final text = (voiceText ?? _controller.text).trim();
     if (text.isEmpty || _chat.isSending) return;
+    final fromVoice = voiceText != null;
 
     _controller.clear();
     final reply = await _chat.sendMessage(text);
     if (!mounted) return;
 
-    // The assistant changed tasks or reminders: refresh those tabs (and
-    // reschedule reminder notifications).
+    // The assistant changed tasks or reminders: refresh those tabs and
+    // reschedule reminder notifications. A new task with a deadline also
+    // gets reminders, so reload both.
     final tool = reply?.tool;
     if (tool == 'create_task') {
       context.read<TaskProvider>().loadTasks();
+      context.read<ReminderProvider>().loadReminders();
     }
     if (tool == 'create_reminder') {
       context.read<ReminderProvider>().loadReminders();
     }
 
-    // Speak the reply (or the error) only if voice is enabled.
+    // Asked out loud: answer out loud, like a real assistant. Typed
+    // messages are spoken only when spoken replies are switched on.
     final spoken = reply?.content ?? _chat.messages.lastOrNull?.content;
-    if (_voiceEnabled && spoken != null) {
+    if ((fromVoice || _voiceEnabled) && spoken != null) {
       setState(() => _isSpeaking = true);
       try {
-        await _voiceService.speak(spoken);
+        await _voiceService.speak(speakableText(spoken));
       } catch (_) {
         _showSnack('Text-to-speech is not available on this device.');
       }
@@ -112,30 +122,56 @@ class _ChatScreenState extends State<ChatScreen>
 
   Future<void> _toggleListening() async {
     if (_isListening) {
+      // Stop now and send what was heard so far.
       await _voiceService.stopListening();
-      if (mounted) setState(() => _isListening = false);
       return;
     }
+    if (_chat.isSending) return;
 
+    _controller.clear();
     setState(() => _isListening = true);
     try {
-      final started = await _voiceService.startListening((text) {
-        if (!mounted) return;
-        setState(() => _isListening = false);
-        if (text.isNotEmpty) {
-          _sendMessage(text);
-        }
-      });
+      final started = await _voiceService.startListening(
+        _onHeard,
+        // Show the words in the input box while the user is talking.
+        onPartial: (words) {
+          if (!mounted) return;
+          _controller.value = TextEditingValue(
+            text: words,
+            selection: TextSelection.collapsed(offset: words.length),
+          );
+        },
+      );
       if (!started) {
         if (mounted) setState(() => _isListening = false);
         _showSnack(
-          'Speech recognition is unavailable. Check microphone permission.',
+          'Speech recognition is unavailable. Allow microphone access and '
+          'make sure Google speech services are installed.',
         );
       }
     } catch (_) {
       if (mounted) setState(() => _isListening = false);
       _showSnack('Speech recognition is not supported on this device.');
     }
+  }
+
+  void _onHeard(String text) {
+    if (!mounted) return;
+    setState(() => _isListening = false);
+
+    if (text.trim().isEmpty) {
+      _controller.clear();
+      final error = _voiceService.lastError ?? '';
+      _showSnack(
+        error.contains('permission')
+            ? 'Liyana needs microphone permission to hear you.'
+            : error.contains('network')
+            ? 'Speech recognition needs an internet connection on this phone.'
+            : "I didn't catch that. Tap the mic and try again.",
+      );
+      return;
+    }
+    _sendMessage(text);
   }
 
   Future<void> _toggleSpeaking() async {
@@ -157,8 +193,13 @@ class _ChatScreenState extends State<ChatScreen>
     });
   }
 
+  void _onVoiceRequested() {
+    if (mounted && !_isListening) _toggleListening();
+  }
+
   @override
   void dispose() {
+    chatVoiceRequests.removeListener(_onVoiceRequested);
     _chat.removeListener(_onChatChanged);
     _controller.dispose();
     _scrollController.dispose();
@@ -176,7 +217,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   static const _suggestions = [
     (Icons.wb_sunny_outlined, 'Plan my day'),
-    (Icons.add_task_rounded, 'Add a task to buy groceries'),
+    (Icons.add_task_rounded, 'Add a task to submit my report by Friday 5pm'),
     (Icons.alarm_rounded, 'Remind me tomorrow at 9am to call mom'),
     (Icons.checklist_rounded, 'What are my tasks?'),
   ];
@@ -226,6 +267,15 @@ class _ChatScreenState extends State<ChatScreen>
           ],
         ),
         actions: [
+          if (AppConstants.liveVoiceEnabled)
+            IconButton(
+              tooltip: 'Talk live with Liyana',
+              icon: const Icon(
+                Icons.graphic_eq_rounded,
+                color: AppColors.primary,
+              ),
+              onPressed: () => LiveVoiceScreen.open(context),
+            ),
           IconButton(
             tooltip: _voiceEnabled
                 ? 'Turn off spoken replies'

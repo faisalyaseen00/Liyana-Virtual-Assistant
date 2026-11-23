@@ -25,6 +25,11 @@ class AppConstants {
     return "http://127.0.0.1:8000/api/v1";
   }
 
+  /// Real-time voice calls (Gemini Live) are paid per minute, so they are
+  /// off; voice uses the phone's free speech recognition and text-to-speech.
+  /// Turn on with --dart-define=LIVE_VOICE=true.
+  static const bool liveVoiceEnabled = bool.fromEnvironment('LIVE_VOICE');
+
   static const Duration connectTimeout = Duration(seconds: 15);
 
   static const Duration receiveTimeout = Duration(seconds: 15);

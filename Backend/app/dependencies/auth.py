@@ -17,8 +17,13 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
+    return authenticate_access_token(credentials.credentials, db)
 
-    payload = decode_token(credentials.credentials)
+
+def authenticate_access_token(token: str, db: Session) -> User:
+    """The active user behind an access token, or HTTPException (401/403).
+    Shared by HTTP requests and the live voice WebSocket."""
+    payload = decode_token(token)
 
     if not payload:
         raise HTTPException(

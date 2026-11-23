@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:mobile_app/features/reminders/reminder_model.dart';
+import 'package:mobile_app/features/tasks/task_model.dart';
 import 'package:mobile_app/services/reminder_notifier.dart';
 
 /// In-memory stand-in for the backend's /reminders endpoints.
@@ -80,6 +81,9 @@ class FakeNotifier implements ReminderNotifier {
       DateTime.now(),
     ).map((n) => n.body).toList();
   }
+
+  @override
+  Future<void> syncTasks(List<Task> tasks) async {}
 
   @override
   Future<void> cancelAll() async {
